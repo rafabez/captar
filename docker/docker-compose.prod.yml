@@ -1,23 +1,18 @@
 services:
-  traefik:
-    image: traefik:v3.0
-    ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/traefik.yml:ro
-      - ./traefik/dynamic.yml:/dynamic.yml:ro
-      - ./traefik/acme.json:/acme.json
-    restart: unless-stopped
-
   backend:
-    build: ../backend
+    build:
+      context: ..
+      dockerfile: backend/Dockerfile
+    expose:
+      - "8000"
     environment:
       - DATABASE_URL=postgresql+asyncpg://captar:${DB_PASSWORD}@postgres:5432/captar
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=${SECRET_KEY}
       - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+      - CLERK_PUBLISHABLE_KEY=${CLERK_PUBLISHABLE_KEY}
+      - CLERK_SECRET_KEY=${CLERK_SECRET_KEY}
+      - CORS_ORIGINS=["${CAPTAR_DOMAIN}"]
     volumes:
       - uploads:/app/uploads
       - exports:/app/exports
@@ -30,8 +25,13 @@ services:
 
   frontend:
     build:
-      context: ../frontend
-      dockerfile: ../docker/nginx/Dockerfile.frontend
+      context: ..
+      dockerfile: docker/nginx/Dockerfile.frontend
+      args:
+        VITE_CLERK_PUBLISHABLE_KEY: ${CLERK_PUBLISHABLE_KEY}
+        VITE_API_URL: ${CAPTAR_DOMAIN}
+    expose:
+      - "80"
     restart: unless-stopped
 
   postgres:
