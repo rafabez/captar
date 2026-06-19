@@ -12,10 +12,9 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    clerk_id: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    password_hash: Mapped[str | None] = mapped_column(String(255))
     full_name: Mapped[str | None] = mapped_column(String(255))
-    google_id: Mapped[str | None] = mapped_column(String(255), unique=True)
     avatar_url: Mapped[str | None] = mapped_column(String(500))
     plan: Mapped[str] = mapped_column(String(20), default="free")
     credits: Mapped[int] = mapped_column(Integer, default=0)

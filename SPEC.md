@@ -324,7 +324,7 @@ Workspace > Exportar → Escolher formato (DOCX/PDF)
 | Storage | Local / MinIO | Arquivos de edital, exportações |
 | Proxy | Traefik 3 | HTTPS, Let's Encrypt, routing |
 | Container | Docker Compose | Deploy simples, serviços isolados |
-| Auth | JWT + Google OAuth | Sem dependência externa obrigatória |
+| Auth | Clerk | Login, cadastro, Google OAuth, sessões, recovery — tudo out-of-the-box |
 | Payment | Mercado Pago | Checkout Transparente |
 | PDF Parse | PyMuPDF + marker-pdf | Extração de texto de editais |
 | Export | python-docx + WeasyPrint | Templates de projeto |

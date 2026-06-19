@@ -6,8 +6,23 @@ interface RequestOptions {
   headers?: Record<string, string>
 }
 
+async function getClerkToken(): Promise<string | null> {
+  try {
+    // Clerk injects __clerk on window
+    const clerk = (window as any).Clerk
+    if (clerk?.session) {
+      return await clerk.session.getToken()
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = 'GET', body, headers = {} } = options
+
+  const token = await getClerkToken()
 
   const config: RequestInit = {
     method,
@@ -18,6 +33,10 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     credentials: 'include',
   }
 
+  if (token) {
+    (config.headers as Record<string, string>)['Authorization'] = `Bearer ${token}`
+  }
+
   if (body) {
     config.body = JSON.stringify(body)
   }
@@ -25,8 +44,12 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const res = await fetch(`${API_BASE}${path}`, config)
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({ detail: res.statusText }))
-    throw new Error(err.detail || 'Erro na requisição')
+    let detail = res.statusText
+    try {
+      const err = await res.json()
+      detail = err.detail || detail
+    } catch {}
+    throw new Error(detail)
   }
 
   return res.json()
@@ -44,6 +67,7 @@ export const api = {
 
 export interface User {
   id: string
+  clerk_id: string
   email: string
   full_name: string | null
   plan: string
@@ -57,7 +81,6 @@ export interface Project {
   state: string | null
   phase: string | null
   status: string
-  score?: number
   updated_at: string
   created_at: string
 }

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { SignUpButton } from '@clerk/clerk-react'
 
 export default function Landing() {
   return (
@@ -14,14 +15,13 @@ export default function Landing() {
           ProAC, editais e patrocínios.
         </p>
         <div className="flex gap-4 justify-center">
+          <SignUpButton mode="modal">
+            <button className="bg-terracotta text-white px-8 py-3 rounded-lg font-medium hover:bg-terracotta/90 transition-colors">
+              Criar meu primeiro projeto
+            </button>
+          </SignUpButton>
           <Link
-            to="/auth"
-            className="bg-terracotta text-white px-8 py-3 rounded-lg font-medium hover:bg-terracotta/90 transition-colors"
-          >
-            Criar meu primeiro projeto
-          </Link>
-          <Link
-            to="/auth"
+            to="/sign-in"
             className="border border-sand text-ink px-8 py-3 rounded-lg font-medium hover:bg-sand/30 transition-colors"
           >
             Fazer diagnóstico grátis
@@ -30,7 +30,7 @@ export default function Landing() {
       </section>
 
       {/* Features */}
-      <section className="max-w-5xl mx-auto px-6 pb-24 grid grid-cols-3 gap-8">
+      <section className="max-w-5xl mx-auto px-6 pb-24 grid grid-cols-1 md:grid-cols-3 gap-8">
         <div className="bg-white border border-sand rounded-xl p-8">
           <div className="text-2xl mb-3">📋</div>
           <h3 className="text-lg font-semibold text-ink mb-2">Diagnóstico em minutos</h3>

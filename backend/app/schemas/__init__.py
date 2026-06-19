@@ -3,24 +3,11 @@ from datetime import datetime, date
 from pydantic import BaseModel, EmailStr
 
 
-# --- Auth ---
-
-class UserRegister(BaseModel):
-    email: EmailStr
-    password: str
-
-class UserLogin(BaseModel):
-    email: EmailStr
-    password: str
-
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-
 # --- User ---
 
 class UserOut(BaseModel):
     id: uuid.UUID
+    clerk_id: str
     email: str
     full_name: str | None
     plan: str
@@ -85,9 +72,6 @@ class SectionOut(BaseModel):
 class SectionUpdate(BaseModel):
     content: str
 
-class SectionGenerate(BaseModel):
-    context: str | None = None  # e.g. "lei_rouanet", "proac", "generic"
-
 # --- Diagnostics ---
 
 class DiagnoseResponse(BaseModel):
@@ -138,13 +122,6 @@ class EditalOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
-class EditalMatchOut(BaseModel):
-    project_id: uuid.UUID
-    project_name: str
-    score: int | None
-    strengths: list | None
-    gaps: list | None
-
 # --- Providers ---
 
 class ProviderCreate(BaseModel):
@@ -164,6 +141,6 @@ class ProviderOut(BaseModel):
 # --- Export ---
 
 class ExportRequest(BaseModel):
-    format: str = "docx"  # docx, pdf
+    format: str = "docx"
     sections: list[str] | None = None
-    template: str = "default"  # default, clean
+    template: str = "default"
