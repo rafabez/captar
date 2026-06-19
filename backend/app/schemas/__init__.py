@@ -125,18 +125,17 @@ class EditalOut(BaseModel):
 # --- Providers ---
 
 class ProviderCreate(BaseModel):
-    provider: str
-    encrypted_key: str | None = None
-    endpoint_url: str | None = None
+    provider: str          # openai | anthropic | openrouter | gemini | ollama
+    api_key: str | None = None      # raw key; encrypted server-side, never returned
+    endpoint_url: str | None = None  # for self-hosted (Ollama) base URL
 
 class ProviderOut(BaseModel):
     id: uuid.UUID
     provider: str
     is_active: bool
     endpoint_url: str | None
+    has_key: bool          # whether a key is stored (the key itself is never exposed)
     created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 # --- Export ---
 

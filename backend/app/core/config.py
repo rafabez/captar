@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     clerk_publishable_key: str = ""
     clerk_secret_key: str = ""
 
+    # Fernet key (urlsafe base64, 32 bytes) used to encrypt BYOK provider keys at rest.
+    encryption_key: str = ""
+
     @property
     def clerk_jwks_url(self) -> str:
         """Derive JWKS URL from Clerk publishable key.

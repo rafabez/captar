@@ -50,8 +50,8 @@
 | # | Step | Status |
 |---|------|--------|
 | 1 | Alembic + initial migration; auto-migrate on deploy | **done** (live DB migrated, verified) |
-| 2 | Crypto helper + BYOK key encryption on save/read | todo |
-| 3 | `services/ai/` provider-router + adapters (start OpenAI/Anthropic/OpenRouter) | todo |
+| 2 | Crypto helper + BYOK key encryption on save/read | **done** |
+| 3 | `services/ai/` provider-router + adapters (OpenAI/Anthropic/OpenRouter/Gemini/Ollama) | **done** |
 | 4 | OpenRouter OAuth PKCE connect flow (backend callback + frontend button) | todo |
 | 5 | **M4 Diagnóstico** — agent, endpoint, ARQ job, results UI (Score + dimensões) | todo |
 | 6 | **M6 Edital** — PDF upload, PyMuPDF parse, analysis agent, results UI | todo |

@@ -7,8 +7,20 @@ from ..core.deps import require_user
 from ..models.user import User
 from ..models.provider import UserProvider
 from ..schemas import UserOut, UserProfileUpdate, ProviderCreate, ProviderOut
+from ..services.crypto import encrypt
 
 router = APIRouter(prefix="/user", tags=["user"])
+
+
+def _provider_out(p: UserProvider) -> ProviderOut:
+    return ProviderOut(
+        id=p.id,
+        provider=p.provider,
+        is_active=p.is_active,
+        endpoint_url=p.endpoint_url,
+        has_key=bool(p.encrypted_key),
+        created_at=p.created_at,
+    )
 
 
 @router.get("/profile", response_model=UserOut)
@@ -37,7 +49,7 @@ async def list_providers(
     result = await db.execute(
         select(UserProvider).where(UserProvider.user_id == current_user.id)
     )
-    return result.scalars().all()
+    return [_provider_out(p) for p in result.scalars().all()]
 
 
 @router.post("/providers", response_model=ProviderOut, status_code=201)
@@ -55,9 +67,11 @@ async def add_provider(
     )
     provider = result.scalar_one_or_none()
 
+    enc_key = encrypt(data.api_key) if data.api_key else None
+
     if provider:
-        if data.encrypted_key is not None:
-            provider.encrypted_key = data.encrypted_key
+        if enc_key is not None:
+            provider.encrypted_key = enc_key
         if data.endpoint_url is not None:
             provider.endpoint_url = data.endpoint_url
         provider.is_active = True
@@ -65,14 +79,14 @@ async def add_provider(
         provider = UserProvider(
             user_id=current_user.id,
             provider=data.provider,
-            encrypted_key=data.encrypted_key,
+            encrypted_key=enc_key,
             endpoint_url=data.endpoint_url,
         )
         db.add(provider)
 
     await db.commit()
     await db.refresh(provider)
-    return provider
+    return _provider_out(provider)
 
 
 @router.delete("/providers/{provider_name}", status_code=204)
