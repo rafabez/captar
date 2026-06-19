@@ -24,7 +24,12 @@ def _parse_float(value) -> float | None:
 
 
 async def run(
-    user: User, db: AsyncSession, raw_text: str, filename: str | None
+    user: User,
+    db: AsyncSession,
+    raw_text: str,
+    *,
+    filename: str | None = None,
+    source_url: str | None = None,
 ) -> Edital:
     messages = [
         ChatMessage("system", prompt.SYSTEM),
@@ -35,8 +40,9 @@ async def run(
 
     edital = Edital(
         user_id=user.id,
-        title=data.get("title") or filename,
+        title=data.get("title") or filename or source_url,
         source_filename=filename,
+        source_url=source_url,
         raw_text=raw_text,
         summary=data.get("summary"),
         eligibility=data.get("eligibility"),

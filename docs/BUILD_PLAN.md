@@ -55,7 +55,8 @@
 | 4 | OpenRouter OAuth PKCE connect flow (backend exchange + frontend button) | **done** (inline; ARQ deferred) |
 | 5 | **M4 Diagnóstico** — agent + endpoint (inline await; ARQ + results UI next) | **done (backend)** |
 | 6 | **M6 Edital** — PDF upload, PyMuPDF parse, analysis agent, results UI | **done** (inline; ARQ next) |
-| 7 | **M7 Seções** — generate per section_type with context, accept/edit/regen | todo |
+| 7 | **M7 Seções** — generate per section_type with context, accept/edit/regen | **done** |
+| 6b | Edital from URL (server-side fetch + SSRF guard) | **done** |
 | 8 | **M8 Export** — DOCX (python-docx) + PDF (WeasyPrint) with templates | todo |
 | 9 | Design system pass + Landing + workspace polish | todo |
 | 10 | Planos + Mercado Pago + credit/plan gating | todo |

@@ -73,6 +73,14 @@ class SectionOut(BaseModel):
 class SectionUpdate(BaseModel):
     content: str
 
+class SectionGenerateRequest(BaseModel):
+    context: str | None = None   # target edital/lei, e.g. "Lei Rouanet", "ProAC"
+
+class SectionDraft(BaseModel):
+    section_type: str
+    content: str
+    generated_by: str            # provider that produced it (not yet saved)
+
 # --- Diagnostics ---
 
 class DiagnoseResponse(BaseModel):
@@ -109,6 +117,9 @@ class MessageCreate(BaseModel):
     content: str
 
 # --- Editais ---
+
+class EditalFromUrl(BaseModel):
+    url: str
 
 class EditalOut(BaseModel):
     id: uuid.UUID

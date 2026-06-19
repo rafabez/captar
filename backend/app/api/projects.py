@@ -9,12 +9,13 @@ from ..models.user import User
 from ..models.project import Project, ProjectSection, Diagnostic, Conversation, Message
 from ..schemas import (
     ProjectCreate, ProjectUpdate, ProjectOut,
-    SectionOut, SectionUpdate,
+    SectionOut, SectionUpdate, SectionGenerateRequest, SectionDraft,
     DiagnoseResponse,
     ConversationOut, MessageOut, MessageCreate,
 )
 from ..services.ai import ProviderError
 from ..services.ai.agents import diagnostic as diagnostic_agent
+from ..services.ai.agents import section as section_agent
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -166,14 +167,37 @@ async def save_section(
     return section
 
 
-@router.post("/{project_id}/sections/{section_type}/generate")
+@router.post("/{project_id}/sections/{section_type}/generate", response_model=SectionDraft)
 async def generate_section(
     project_id: uuid.UUID,
     section_type: str,
+    data: SectionGenerateRequest | None = None,
     current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    # TODO: Implement AI generation
-    return {"status": "not_implemented", "message": "Geração com IA será implementada na Fase 1"}
+    proj = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    project = proj.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+    secs = await db.execute(
+        select(ProjectSection).where(ProjectSection.project_id == project_id)
+    )
+    sections = list(secs.scalars().all())
+
+    try:
+        result = await section_agent.run(
+            current_user, db, project, sections, section_type,
+            data.context if data else None,
+        )
+    except ProviderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return SectionDraft(
+        section_type=section_type, content=result.content, generated_by=result.provider
+    )
 
 
 # --- Diagnostics ---

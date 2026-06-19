@@ -61,6 +61,7 @@ function Result({ e }: { e: Edital }) {
 export default function EditalUpload() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [busy, setBusy] = useState(false)
+  const [url, setUrl] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<Edital | null>(null)
   const [recent, setRecent] = useState<Edital[]>([])
@@ -77,6 +78,23 @@ export default function EditalUpload() {
     try {
       const e = await uploadFile<Edital>('/editais/upload', file)
       setResult(e)
+      await loadRecent()
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function fromUrl() {
+    if (!url.trim()) return
+    setBusy(true)
+    setError(null)
+    setResult(null)
+    try {
+      const e = await api.post<Edital>('/editais/from-url', { url: url.trim() })
+      setResult(e)
+      setUrl('')
       await loadRecent()
     } catch (err) {
       setError((err as Error).message)
@@ -110,6 +128,22 @@ export default function EditalUpload() {
             <p className="text-ink-soft text-sm">Resumo, requisitos, prazos e critérios em segundos.</p>
           </>
         )}
+      </div>
+
+      <div className="flex items-center gap-3 my-4">
+        <div className="h-px flex-1 bg-line" />
+        <span className="text-xs text-ink-soft">ou cole um link</span>
+        <div className="h-px flex-1 bg-line" />
+      </div>
+
+      <div className="flex gap-2">
+        <input className="input" type="url" value={url} disabled={busy}
+          onChange={(e) => setUrl(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && fromUrl()}
+          placeholder="https://…/edital.pdf" />
+        <button onClick={fromUrl} disabled={busy} className="btn btn-ghost shrink-0">
+          Analisar do link
+        </button>
       </div>
 
       {error && (
