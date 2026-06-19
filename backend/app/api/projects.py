@@ -7,15 +7,18 @@ from ..core.database import get_db
 from ..core.deps import require_user
 from ..models.user import User
 from ..models.project import Project, ProjectSection, Diagnostic, Conversation, Message
+from fastapi import Response
+
 from ..schemas import (
     ProjectCreate, ProjectUpdate, ProjectOut,
     SectionOut, SectionUpdate, SectionGenerateRequest, SectionDraft,
-    DiagnoseResponse,
+    DiagnoseResponse, ExportRequest,
     ConversationOut, MessageOut, MessageCreate,
 )
 from ..services.ai import ProviderError
 from ..services.ai.agents import diagnostic as diagnostic_agent
 from ..services.ai.agents import section as section_agent
+from ..services import export_service
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -264,6 +267,53 @@ async def list_diagnostics(
         )
         for d in result.scalars().all()
     ]
+
+
+# --- Export ---
+
+@router.post("/{project_id}/export")
+async def export_project(
+    project_id: uuid.UUID,
+    data: ExportRequest,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    proj = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    project = proj.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+    # Latest content per section_type (sections are append-only versioned).
+    secs = await db.execute(
+        select(ProjectSection)
+        .where(ProjectSection.project_id == project_id)
+        .order_by(ProjectSection.version)
+    )
+    content_by_type: dict[str, str] = {}
+    for s in secs.scalars().all():
+        if s.content:
+            content_by_type[s.section_type] = s.content
+
+    fmt = (data.format or "docx").lower()
+    if fmt not in ("docx", "pdf"):
+        raise HTTPException(status_code=400, detail="Formato deve ser docx ou pdf")
+
+    try:
+        content, filename, media = export_service.build(
+            project, content_by_type, fmt, data.sections
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:  # WeasyPrint native-lib failure, etc.
+        raise HTTPException(status_code=500, detail=f"Falha ao gerar {fmt}: {e}")
+
+    return Response(
+        content=content,
+        media_type=media,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 # --- Conversations ---

@@ -57,7 +57,7 @@
 | 6 | **M6 Edital** — PDF upload, PyMuPDF parse, analysis agent, results UI | **done** (inline; ARQ next) |
 | 7 | **M7 Seções** — generate per section_type with context, accept/edit/regen | **done** |
 | 6b | Edital from URL (server-side fetch + SSRF guard) | **done** |
-| 8 | **M8 Export** — DOCX (python-docx) + PDF (WeasyPrint) with templates | todo |
+| 8 | **M8 Export** — DOCX (python-docx) + PDF (WeasyPrint) | **done** |
 | 9 | Design system pass + Landing + workspace polish | todo |
 | 10 | Planos + Mercado Pago + credit/plan gating | todo |
 | 11 | Clerk prod instance, secrets via env_file, observability (Sentry/Plausible) | todo |

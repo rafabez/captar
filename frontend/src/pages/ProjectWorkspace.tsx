@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api, type Project, type Diagnostic } from '../lib/api'
+import { api, downloadPost, type Project, type Diagnostic } from '../lib/api'
 
 const DIM_LABELS: Record<string, string> = {
   conceito: 'Conceito', narrativa: 'Narrativa', orcamento: 'Orçamento',
@@ -192,10 +192,41 @@ function SectionsPanel({ id }: { id: string }) {
   )
 }
 
+function ExportPanel({ id }: { id: string }) {
+  const [busy, setBusy] = useState<'docx' | 'pdf' | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function exp(fmt: 'docx' | 'pdf') {
+    setBusy(fmt); setError(null)
+    try { await downloadPost(`/projects/${id}/export`, { format: fmt }, `projeto.${fmt}`) }
+    catch (e) { setError((e as Error).message) }
+    finally { setBusy(null) }
+  }
+
+  return (
+    <div className="card-pad">
+      <h2 className="font-display text-2xl font-bold text-ink mb-2">Exportar projeto</h2>
+      <p className="text-ink-soft text-sm mb-6">
+        Gera um documento com todas as seções salvas, pronto para submissão.
+        Salve as seções na aba Seções antes de exportar.
+      </p>
+      {error && <div className="rounded-xl bg-terracotta/8 border border-terracotta/20 text-terracotta text-sm px-4 py-3 mb-4">{error}</div>}
+      <div className="flex gap-3">
+        <button onClick={() => exp('docx')} disabled={!!busy} className="btn btn-primary">
+          {busy === 'docx' ? 'Gerando…' : 'Baixar DOCX'}
+        </button>
+        <button onClick={() => exp('pdf')} disabled={!!busy} className="btn btn-ghost">
+          {busy === 'pdf' ? 'Gerando…' : 'Baixar PDF'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>()
   const [project, setProject] = useState<Project | null>(null)
-  const [tab, setTab] = useState<'diag' | 'sections'>('diag')
+  const [tab, setTab] = useState<'diag' | 'sections' | 'export'>('diag')
 
   useEffect(() => {
     if (id) api.get<Project>(`/projects/${id}`).then(setProject).catch(() => {})
@@ -214,7 +245,7 @@ export default function ProjectWorkspace() {
       </div>
 
       <div className="flex gap-1 mb-6 border-b border-line">
-        {([['diag', 'Diagnóstico'], ['sections', 'Seções']] as const).map(([k, label]) => (
+        {([['diag', 'Diagnóstico'], ['sections', 'Seções'], ['export', 'Exportar']] as const).map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-sm -mb-px border-b-2 transition-colors ${
               tab === k ? 'border-terracotta text-ink font-medium' : 'border-transparent text-ink-soft hover:text-ink'
@@ -224,7 +255,9 @@ export default function ProjectWorkspace() {
         ))}
       </div>
 
-      {tab === 'diag' ? <DiagnosticPanel id={id} /> : <SectionsPanel id={id} />}
+      {tab === 'diag' && <DiagnosticPanel id={id} />}
+      {tab === 'sections' && <SectionsPanel id={id} />}
+      {tab === 'export' && <ExportPanel id={id} />}
     </div>
   )
 }

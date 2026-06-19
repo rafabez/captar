@@ -63,6 +63,38 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
 
+// POST that returns a binary file, and triggers a browser download.
+export async function downloadPost(path: string, body: unknown, fallbackName: string): Promise<void> {
+  const token = await getClerkToken()
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    credentials: 'include',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      detail = (await res.json()).detail || detail
+    } catch {}
+    throw new Error(detail)
+  }
+  const blob = await res.blob()
+  const cd = res.headers.get('Content-Disposition') || ''
+  const name = cd.match(/filename="?([^"]+)"?/)?.[1] || fallbackName
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = name
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  URL.revokeObjectURL(url)
+}
+
 // Multipart upload (PDF) — sends the Clerk bearer token, no JSON content-type.
 export async function uploadFile<T>(path: string, file: File): Promise<T> {
   const token = await getClerkToken()
