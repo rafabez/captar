@@ -8,6 +8,9 @@ from ..core.deps import require_user
 from ..models.user import User
 from ..models.project import Edital
 from ..schemas import EditalOut
+from ..services.edital_parser import extract_text
+from ..services.ai import ProviderError
+from ..services.ai.agents import edital as edital_agent
 
 router = APIRouter(prefix="/editais", tags=["editais"])
 
@@ -40,10 +43,23 @@ async def get_edital(
     return edital
 
 
-@router.post("/upload")
+@router.post("/upload", response_model=EditalOut, status_code=201)
 async def upload_edital(
     file: UploadFile = File(...),
     current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    # TODO: Implement PDF parsing + AI analysis
-    return {"status": "not_implemented", "message": "Upload de edital será implementado na Fase 1"}
+    data = await file.read()
+    try:
+        raw = extract_text(data)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Não foi possível ler o PDF: {e}")
+    if not raw.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="PDF sem texto extraível (provavelmente digitalizado/imagem).",
+        )
+    try:
+        return await edital_agent.run(current_user, db, raw, file.filename)
+    except ProviderError as e:
+        raise HTTPException(status_code=400, detail=str(e))

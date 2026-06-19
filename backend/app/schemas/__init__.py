@@ -118,6 +118,7 @@ class EditalOut(BaseModel):
     deadline: date | None
     max_value: float | None
     requirements: list | None
+    criteria: list | None
     status: str
     created_at: datetime
 

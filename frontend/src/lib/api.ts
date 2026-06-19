@@ -63,6 +63,27 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
 
+// Multipart upload (PDF) — sends the Clerk bearer token, no JSON content-type.
+export async function uploadFile<T>(path: string, file: File): Promise<T> {
+  const token = await getClerkToken()
+  const form = new FormData()
+  form.append('file', file)
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    body: form,
+    credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  if (!res.ok) {
+    let detail = res.statusText
+    try {
+      detail = (await res.json()).detail || detail
+    } catch {}
+    throw new Error(detail)
+  }
+  return res.json()
+}
+
 // --- Types ---
 
 export interface User {
@@ -111,7 +132,9 @@ export interface Edital {
   deadline: string | null
   max_value: number | null
   requirements: string[]
+  criteria: string[]
   status: string
+  created_at: string
 }
 
 export interface Conversation {

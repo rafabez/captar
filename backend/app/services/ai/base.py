@@ -4,6 +4,7 @@ Every BYOK provider (OpenAI, Anthropic, OpenRouter, Gemini, Ollama) is wrapped i
 a thin adapter exposing the same `complete()` contract, so callers (diagnostic,
 edital analysis, section generation, chat) never branch on provider.
 """
+import json
 from dataclasses import dataclass
 
 
@@ -24,6 +25,22 @@ class ChatResult:
 
 class ProviderError(Exception):
     """Raised when a provider is misconfigured or the upstream call fails."""
+
+
+def parse_json(text: str) -> dict:
+    """Tolerant JSON extraction — strips code fences and surrounding prose."""
+    s = text.strip()
+    if s.startswith("```"):
+        s = s.split("```", 2)[1]
+        if s.startswith("json"):
+            s = s[4:]
+    start, end = s.find("{"), s.rfind("}")
+    if start == -1 or end == -1:
+        raise ProviderError("Resposta da IA não contém JSON")
+    try:
+        return json.loads(s[start : end + 1])
+    except json.JSONDecodeError as e:
+        raise ProviderError(f"JSON inválido da IA: {e}")
 
 
 class BaseProvider:
