@@ -9,7 +9,6 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 ALGORITHM = "RS256"
-CLERK_ISSUER_PREFIX = "https://clerk."
 
 _jwks_cache: Optional[dict] = None
 _jwks_client: Optional[httpx.AsyncClient] = None
@@ -71,8 +70,8 @@ async def verify_clerk_token(token: str) -> dict | None:
             options={"verify_aud": False},
         )
 
-        iss = payload.get("iss", "")
-        if not iss.startswith(CLERK_ISSUER_PREFIX):
+        expected_iss = settings.clerk_issuer
+        if expected_iss and payload.get("iss") != expected_iss:
             return None
 
         return payload

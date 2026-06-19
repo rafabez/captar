@@ -64,6 +64,19 @@ function App() {
       afterSignOutUrl="/"
       signInUrl="/sign-in"
       signUpUrl="/sign-up"
+      appearance={{
+        variables: {
+          colorPrimary: '#C4553F',
+          colorText: '#211C16',
+          colorBackground: '#FFFFFF',
+          borderRadius: '0.75rem',
+          fontFamily: 'Inter, sans-serif',
+        },
+        elements: {
+          card: 'shadow-none border border-[#EBE5DB]',
+          headerTitle: 'font-[Playfair_Display]',
+        },
+      }}
     >
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>

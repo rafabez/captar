@@ -1,17 +1,63 @@
 @import "tailwindcss";
 
 @theme {
-  --color-paper: #FAF8F5;
-  --color-ink: #1A1A1A;
+  /* Editorial palette — paper & graphite, terracotta accent. */
+  --color-paper: #FAF7F2;
+  --color-paper-2: #F1ECE3;
+  --color-card: #FFFFFF;
+  --color-ink: #211C16;
+  --color-ink-soft: #6E655A;
+  --color-sand: #E6E0D6;
+  --color-line: #EBE5DB;
+
   --color-terracotta: #C4553F;
+  --color-terracotta-dark: #A53F2C;
   --color-petroleum: #1B4D5C;
   --color-ochre: #C4943A;
-  --color-sand: #E5E0D8;
   --color-moss: #3D7A5C;
+
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-display: 'Playfair Display', Georgia, 'Times New Roman', serif;
 }
 
-body {
-  background-color: var(--color-paper);
-  color: var(--color-ink);
-  font-family: 'Inter', sans-serif;
+@layer base {
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+  h1, h2, h3 {
+    font-family: var(--font-display);
+    letter-spacing: -0.01em;
+  }
+  /* Subtle paper grain via layered radial gradients. */
+  .bg-grain {
+    background-image:
+      radial-gradient(circle at 18% 20%, rgba(196, 85, 63, 0.04), transparent 38%),
+      radial-gradient(circle at 82% 8%, rgba(27, 77, 92, 0.04), transparent 40%);
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-5 py-2.5
+           text-sm font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary { @apply bg-terracotta text-white hover:bg-terracotta-dark shadow-sm; }
+  .btn-petrol  { @apply bg-petroleum text-white hover:opacity-90 shadow-sm; }
+  .btn-ghost   { @apply border border-sand text-ink hover:bg-paper-2; }
+
+  .card { @apply bg-card border border-line rounded-2xl; }
+  .card-pad { @apply bg-card border border-line rounded-2xl p-7; }
+
+  .input {
+    @apply w-full px-4 py-2.5 rounded-xl border border-sand bg-card text-ink text-sm
+           placeholder:text-ink/25 focus:outline-none focus:border-terracotta
+           focus:ring-4 focus:ring-terracotta/10 transition;
+  }
+  .label { @apply block text-sm font-medium text-ink mb-1.5; }
+
+  .eyebrow { @apply text-xs font-semibold tracking-[0.18em] uppercase text-terracotta; }
+  .chip { @apply inline-flex items-center rounded-full bg-paper-2 px-3 py-1 text-xs font-medium text-ink-soft; }
 }
