@@ -13,6 +13,8 @@ from ..schemas import (
     DiagnoseResponse,
     ConversationOut, MessageOut, MessageCreate,
 )
+from ..services.ai import ProviderError
+from ..services.ai.agents import diagnostic as diagnostic_agent
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -180,9 +182,64 @@ async def generate_section(
 async def run_diagnostic(
     project_id: uuid.UUID,
     current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    # TODO: Implement AI diagnosis
-    return {"status": "not_implemented", "message": "Diagnóstico será implementado na Fase 1"}
+    proj = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    project = proj.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+    secs = await db.execute(
+        select(ProjectSection).where(ProjectSection.project_id == project_id)
+    )
+    sections = list(secs.scalars().all())
+
+    try:
+        diag = await diagnostic_agent.run(current_user, db, project, sections)
+    except ProviderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return DiagnoseResponse(
+        id=diag.id,
+        overall_score=diag.overall_score,
+        scores=diag.scores_json,
+        strengths=diag.strengths,
+        weaknesses=diag.weaknesses,
+        risks=diag.risks,
+        edital_matches=diag.edital_matches,
+        next_steps=diag.next_steps,
+        created_at=diag.created_at,
+    )
+
+
+@router.get("/{project_id}/diagnostics", response_model=list[DiagnoseResponse])
+async def list_diagnostics(
+    project_id: uuid.UUID,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Diagnostic)
+        .join(Project)
+        .where(Diagnostic.project_id == project_id, Project.user_id == current_user.id)
+        .order_by(Diagnostic.created_at.desc())
+    )
+    return [
+        DiagnoseResponse(
+            id=d.id,
+            overall_score=d.overall_score,
+            scores=d.scores_json,
+            strengths=d.strengths,
+            weaknesses=d.weaknesses,
+            risks=d.risks,
+            edital_matches=d.edital_matches,
+            next_steps=d.next_steps,
+            created_at=d.created_at,
+        )
+        for d in result.scalars().all()
+    ]
 
 
 # --- Conversations ---

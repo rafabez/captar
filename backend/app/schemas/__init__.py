@@ -137,6 +137,10 @@ class ProviderOut(BaseModel):
     has_key: bool          # whether a key is stored (the key itself is never exposed)
     created_at: datetime
 
+class OpenRouterExchange(BaseModel):
+    code: str              # auth code from the OpenRouter PKCE redirect
+    code_verifier: str     # the PKCE verifier the frontend generated
+
 # --- Export ---
 
 class ExportRequest(BaseModel):
