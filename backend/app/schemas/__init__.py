@@ -1,0 +1,169 @@
+import uuid
+from datetime import datetime, date
+from pydantic import BaseModel, EmailStr
+
+
+# --- Auth ---
+
+class UserRegister(BaseModel):
+    email: EmailStr
+    password: str
+
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+# --- User ---
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    full_name: str | None
+    plan: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class UserProfileUpdate(BaseModel):
+    full_name: str | None = None
+
+# --- Project ---
+
+class ProjectCreate(BaseModel):
+    name: str
+    area: str | None = None
+    city: str | None = None
+    state: str | None = None
+    target_aud: str | None = None
+    phase: str | None = None
+    budget_approx: float | None = None
+    deadline: date | None = None
+    objective: str | None = None
+    description: str | None = None
+
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    area: str | None = None
+    city: str | None = None
+    state: str | None = None
+    target_aud: str | None = None
+    phase: str | None = None
+    budget_approx: float | None = None
+    deadline: date | None = None
+    objective: str | None = None
+    description: str | None = None
+    status: str | None = None
+
+class ProjectOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    area: str | None
+    city: str | None
+    state: str | None
+    phase: str | None
+    status: str
+    updated_at: datetime
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+# --- Sections ---
+
+class SectionOut(BaseModel):
+    id: uuid.UUID
+    section_type: str
+    content: str | None
+    version: int
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class SectionUpdate(BaseModel):
+    content: str
+
+class SectionGenerate(BaseModel):
+    context: str | None = None  # e.g. "lei_rouanet", "proac", "generic"
+
+# --- Diagnostics ---
+
+class DiagnoseResponse(BaseModel):
+    id: uuid.UUID
+    overall_score: int | None
+    scores: dict | None
+    strengths: list | None
+    weaknesses: list | None
+    risks: list | None
+    edital_matches: list | None
+    next_steps: list | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+# --- Conversations ---
+
+class ConversationOut(BaseModel):
+    id: uuid.UUID
+    title: str | None
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class MessageOut(BaseModel):
+    id: uuid.UUID
+    role: str
+    content: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class MessageCreate(BaseModel):
+    content: str
+
+# --- Editais ---
+
+class EditalOut(BaseModel):
+    id: uuid.UUID
+    title: str | None
+    summary: str | None
+    eligibility: dict | None
+    deadline: date | None
+    max_value: float | None
+    requirements: list | None
+    status: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+class EditalMatchOut(BaseModel):
+    project_id: uuid.UUID
+    project_name: str
+    score: int | None
+    strengths: list | None
+    gaps: list | None
+
+# --- Providers ---
+
+class ProviderCreate(BaseModel):
+    provider: str
+    encrypted_key: str | None = None
+    endpoint_url: str | None = None
+
+class ProviderOut(BaseModel):
+    id: uuid.UUID
+    provider: str
+    is_active: bool
+    endpoint_url: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+# --- Export ---
+
+class ExportRequest(BaseModel):
+    format: str = "docx"  # docx, pdf
+    sections: list[str] | None = None
+    template: str = "default"  # default, clean

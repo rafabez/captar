@@ -1,0 +1,28 @@
+http:
+  routers:
+    frontend:
+      rule: "Host(`captar.ia.br`) || Host(`www.captar.ia.br`)"
+      entryPoints:
+        - websecure
+      service: frontend
+      tls:
+        certResolver: letsencrypt
+
+    backend:
+      rule: "Host(`captar.ia.br`) && PathPrefix(`/api`)"
+      entryPoints:
+        - websecure
+      service: backend
+      tls:
+        certResolver: letsencrypt
+
+  services:
+    frontend:
+      loadBalancer:
+        servers:
+          - url: "http://frontend:80"
+
+    backend:
+      loadBalancer:
+        servers:
+          - url: "http://backend:8000"
