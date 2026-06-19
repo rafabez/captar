@@ -9,6 +9,7 @@ from ..models.user import User
 from ..models.provider import UserProvider
 from ..schemas import (
     UserOut, UserProfileUpdate, ProviderCreate, ProviderOut, OpenRouterExchange,
+    ProviderSelect,
 )
 from ..services.crypto import encrypt
 
@@ -87,9 +88,32 @@ async def add_provider(
         )
         db.add(provider)
 
+    # Newly configured provider becomes the active one (user can switch later).
+    current_user.active_provider = data.provider
     await db.commit()
     await db.refresh(provider)
     return _provider_out(provider)
+
+
+@router.post("/providers/select", response_model=UserOut)
+async def select_provider(
+    data: ProviderSelect,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(UserProvider).where(
+            UserProvider.user_id == current_user.id,
+            UserProvider.provider == data.provider,
+            UserProvider.is_active == True,  # noqa: E712
+        )
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=400, detail="Provedor não conectado")
+    current_user.active_provider = data.provider
+    await db.commit()
+    await db.refresh(current_user)
+    return current_user
 
 
 @router.post("/providers/openrouter/exchange", response_model=ProviderOut, status_code=201)
@@ -136,6 +160,7 @@ async def openrouter_exchange(
         )
         db.add(provider)
 
+    current_user.active_provider = "openrouter"
     await db.commit()
     await db.refresh(provider)
     return _provider_out(provider)

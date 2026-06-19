@@ -18,20 +18,24 @@ const KEY_PROVIDERS = [
 
 export default function Settings() {
   const [providers, setProviders] = useState<Provider[]>([])
+  const [active, setActive] = useState<string | null>(null)
   const [keys, setKeys] = useState<Record<string, string>>({})
   const [ollama, setOllama] = useState('')
   const [status, setStatus] = useState<string | null>(null)
 
   const connected = (id: string) => providers.find((p) => p.provider === id && p.is_active)
+  const ok = (id: string) => !!connected(id) && (id === 'ollama' || !!connected(id)?.has_key)
 
-  const load = () =>
-    api.get<Provider[]>('/user/providers').then(setProviders).catch(() => {})
+  const load = () => api.get<Provider[]>('/user/providers').then(setProviders).catch(() => {})
+  const loadProfile = () =>
+    api.get<{ active_provider: string | null }>('/user/profile')
+      .then((p) => setActive(p.active_provider)).catch(() => {})
 
   useEffect(() => {
     completeOpenRouterConnect()
-      .then((ok) => {
-        if (ok) setStatus('OpenRouter conectado!')
-        return load()
+      .then((okConn) => {
+        if (okConn) setStatus('OpenRouter conectado!')
+        return Promise.all([load(), loadProfile()])
       })
       .catch((e) => setStatus(`Erro: ${e.message}`))
   }, [])
@@ -42,8 +46,8 @@ export default function Settings() {
     try {
       await api.post('/user/providers', { provider: id, api_key })
       setKeys((k) => ({ ...k, [id]: '' }))
-      setStatus(`${id} salvo!`)
-      await load()
+      setStatus(`${id} salvo e em uso!`)
+      await Promise.all([load(), loadProfile()])
     } catch (e) {
       setStatus(`Erro: ${(e as Error).message}`)
     }
@@ -55,22 +59,47 @@ export default function Settings() {
         provider: 'ollama',
         endpoint_url: ollama.trim() || 'http://localhost:11434',
       })
-      setStatus('Ollama salvo!')
-      await load()
+      setStatus('Ollama salvo e em uso!')
+      await Promise.all([load(), loadProfile()])
     } catch (e) {
       setStatus(`Erro: ${(e as Error).message}`)
     }
   }
 
-  const ok = (id: string) => connected(id) && (id === 'ollama' || connected(id)?.has_key)
+  async function selectProvider(id: string) {
+    try {
+      await api.post('/user/providers/select', { provider: id })
+      setActive(id)
+      setStatus(`Usando ${id} para a IA.`)
+    } catch (e) {
+      setStatus(`Erro: ${(e as Error).message}`)
+    }
+  }
+
+  // Status pill: "Em uso" badge, or a "Usar" switch button for connected-but-idle.
+  function Pill({ id }: { id: string }) {
+    if (!ok(id)) return null
+    if (active === id)
+      return <span className="text-xs text-terracotta font-semibold shrink-0">● Em uso</span>
+    return (
+      <button onClick={() => selectProvider(id)} className="text-xs text-petroleum underline shrink-0">
+        Usar esta
+      </button>
+    )
+  }
 
   return (
     <div className="max-w-xl">
       <p className="eyebrow mb-1">Configurações</p>
       <h1 className="font-display text-3xl font-bold text-ink mb-2">Conexão com IA</h1>
-      <p className="text-sm text-ink-soft mb-8">
+      <p className="text-sm text-ink-soft mb-2">
         Conecte sua própria IA. O CAPTAR não cobra tokens — você paga direto ao
         seu provedor, ou roda local de graça com Ollama.
+      </p>
+      <p className="text-sm text-ink-soft mb-8">
+        Pode conectar várias, mas só <strong className="text-ink">uma</strong> é usada por vez —
+        a marcada <span className="text-terracotta font-semibold">● Em uso</span>. Clique
+        “Usar esta” para trocar.
       </p>
 
       {status && (
@@ -92,7 +121,7 @@ export default function Settings() {
             </p>
           </div>
           {ok('openrouter') ? (
-            <span className="text-sm text-moss font-medium shrink-0">Conectado ✓</span>
+            <Pill id="openrouter" />
           ) : (
             <button onClick={() => startOpenRouterConnect()} className="btn btn-petrol shrink-0">
               Conectar
@@ -105,23 +134,23 @@ export default function Settings() {
       <div className="card-pad space-y-5">
         {KEY_PROVIDERS.map((p) => (
           <div key={p.id}>
-            <label className="label flex items-center gap-2">
-              {p.label}
-              {ok(p.id) && <span className="text-xs text-moss font-medium">conectado ✓</span>}
+            <label className="label flex items-center justify-between">
+              <span>{p.label}</span>
+              <Pill id={p.id} />
             </label>
             <div className="flex gap-2">
               <input type="password" className="input" value={keys[p.id] || ''}
                 onChange={(e) => setKeys((k) => ({ ...k, [p.id]: e.target.value }))}
-                placeholder={p.placeholder} />
+                placeholder={ok(p.id) ? '•••••••• (substituir)' : p.placeholder} />
               <button onClick={() => saveKey(p.id)} className="btn btn-primary shrink-0">Salvar</button>
             </div>
           </div>
         ))}
 
         <div>
-          <label className="label flex items-center gap-2">
-            Ollama (local)
-            {ok('ollama') && <span className="text-xs text-moss font-medium">conectado ✓</span>}
+          <label className="label flex items-center justify-between">
+            <span>Ollama (local)</span>
+            <Pill id="ollama" />
           </label>
           <div className="flex gap-2">
             <input type="text" className="input" value={ollama}

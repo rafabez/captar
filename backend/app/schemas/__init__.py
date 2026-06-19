@@ -11,6 +11,7 @@ class UserOut(BaseModel):
     email: str
     full_name: str | None
     plan: str
+    active_provider: str | None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -140,6 +141,9 @@ class ProviderOut(BaseModel):
 class OpenRouterExchange(BaseModel):
     code: str              # auth code from the OpenRouter PKCE redirect
     code_verifier: str     # the PKCE verifier the frontend generated
+
+class ProviderSelect(BaseModel):
+    provider: str          # which connected provider to use for AI calls
 
 # --- Export ---
 

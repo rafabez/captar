@@ -29,15 +29,22 @@ PROVIDERS: dict[str, type[BaseProvider]] = {
 async def resolve_provider(
     user: User, db: AsyncSession, *, provider: str | None = None
 ) -> BaseProvider:
-    query = select(UserProvider).where(
-        UserProvider.user_id == user.id,
-        UserProvider.is_active == True,  # noqa: E712 (SQLAlchemy needs ==)
-    )
-    if provider:
-        query = query.where(UserProvider.provider == provider)
-    query = query.order_by(UserProvider.updated_at.desc())
+    # Prefer the explicitly requested provider, else the user's chosen one,
+    # else fall back to the most recently configured active provider.
+    chosen = provider or user.active_provider
 
-    row = (await db.execute(query)).scalars().first()
+    async def _pick(name: str | None) -> UserProvider | None:
+        q = select(UserProvider).where(
+            UserProvider.user_id == user.id,
+            UserProvider.is_active == True,  # noqa: E712 (SQLAlchemy needs ==)
+        )
+        if name:
+            q = q.where(UserProvider.provider == name)
+        return (await db.execute(q.order_by(UserProvider.updated_at.desc()))).scalars().first()
+
+    row = await _pick(chosen)
+    if row is None and chosen and provider is None:
+        row = await _pick(None)  # chosen one is gone; use any active
     if row is None:
         raise ProviderError("Nenhum provedor de IA configurado")
 
