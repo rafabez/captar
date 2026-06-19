@@ -98,6 +98,7 @@ export interface Diagnostic {
   scores: Record<string, number>
   strengths: string[]
   weaknesses: string[]
+  risks: string[]
   next_steps: string[]
   edital_matches: Array<{ name: string; score: number }>
 }

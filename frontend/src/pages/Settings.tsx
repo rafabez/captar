@@ -92,11 +92,11 @@ export default function Settings() {
               </div>
             </div>
             {connected('openrouter') ? (
-              <span className="text-xs text-petrol font-medium">Conectado ✓</span>
+              <span className="text-xs text-petroleum font-medium">Conectado ✓</span>
             ) : (
               <button
                 onClick={() => startOpenRouterConnect()}
-                className="bg-petrol text-white px-4 py-2 rounded-lg text-sm font-medium"
+                className="bg-petroleum text-white px-4 py-2 rounded-lg text-sm font-medium"
               >
                 Conectar
               </button>
@@ -111,7 +111,7 @@ export default function Settings() {
               <label className="block text-sm font-medium text-ink mb-1">
                 {p.label}
                 {connected(p.id)?.has_key && (
-                  <span className="ml-2 text-xs text-petrol">conectado ✓</span>
+                  <span className="ml-2 text-xs text-petroleum">conectado ✓</span>
                 )}
               </label>
               <div className="flex gap-2">
@@ -137,7 +137,7 @@ export default function Settings() {
             <label className="block text-sm font-medium text-ink mb-1">
               Ollama (local)
               {connected('ollama') && (
-                <span className="ml-2 text-xs text-petrol">conectado ✓</span>
+                <span className="ml-2 text-xs text-petroleum">conectado ✓</span>
               )}
             </label>
             <div className="flex gap-2">
