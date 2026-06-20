@@ -7,10 +7,26 @@ services:
       - DATABASE_URL=postgresql+asyncpg://captar:devpass123@postgres:5432/captar
       - REDIS_URL=redis://redis:6379
       - SECRET_KEY=dev-secret-key-change-in-production
+      - ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       - DEBUG=true
     volumes:
       - ./backend:/app
       - uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build: ./backend
+    command: arq app.workers.worker.WorkerSettings
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://captar:devpass123@postgres:5432/captar
+      - REDIS_URL=redis://redis:6379
+      - ENCRYPTION_KEY=AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+    volumes:
+      - ./backend:/app
     depends_on:
       postgres:
         condition: service_healthy

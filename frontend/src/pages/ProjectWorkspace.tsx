@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api, downloadPost, type Project, type Diagnostic } from '../lib/api'
+import { api, downloadPost, pollJob, type Project, type Diagnostic } from '../lib/api'
 
 const DIM_LABELS: Record<string, string> = {
   conceito: 'Conceito', narrativa: 'Narrativa', orcamento: 'Orçamento',
@@ -80,8 +80,10 @@ function DiagnosticPanel({ id }: { id: string }) {
 
   async function run() {
     setRunning(true); setError(null)
-    try { setDiag(await api.post<Diagnostic>(`/projects/${id}/diagnose`)) }
-    catch (e) { setError((e as Error).message) }
+    try {
+      const job = await api.post<{ id: string }>(`/projects/${id}/diagnose`)
+      setDiag(await pollJob<Diagnostic>(job.id))
+    } catch (e) { setError((e as Error).message) }
     finally { setRunning(false) }
   }
 
@@ -140,7 +142,8 @@ function SectionsPanel({ id }: { id: string }) {
   async function generate() {
     setBusy('gen'); setStatus(null)
     try {
-      const d = await api.post<{ content: string }>(`/projects/${id}/sections/${active}/generate`, { context: context || null })
+      const job = await api.post<{ id: string }>(`/projects/${id}/sections/${active}/generate`, { context: context || null })
+      const d = await pollJob<{ content: string }>(job.id)
       setContent(d.content)
     } catch (e) { setStatus(`Erro: ${(e as Error).message}`) }
     finally { setBusy(null) }

@@ -12,10 +12,10 @@ from ..core.database import get_db
 from ..core.deps import require_user
 from ..models.user import User
 from ..models.project import Edital
-from ..schemas import EditalOut, EditalFromUrl
+from ..models.job import Job
+from ..schemas import EditalOut, EditalFromUrl, JobOut
 from ..services.edital_parser import extract_text
-from ..services.ai import ProviderError
-from ..services.ai.agents import edital as edital_agent
+from ..workers.queue import get_pool
 
 router = APIRouter(prefix="/editais", tags=["editais"])
 
@@ -68,7 +68,19 @@ async def get_edital(
     return edital
 
 
-@router.post("/upload", response_model=EditalOut, status_code=201)
+async def _enqueue_edital(
+    user: User, db: AsyncSession, raw: str, *, filename=None, source_url=None
+) -> Job:
+    job = Job(user_id=user.id, kind="edital")
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
+    pool = await get_pool()
+    await pool.enqueue_job("run_edital_job", str(job.id), str(user.id), raw, filename, source_url)
+    return job
+
+
+@router.post("/upload", response_model=JobOut, status_code=202)
 async def upload_edital(
     file: UploadFile = File(...),
     current_user: User = Depends(require_user),
@@ -84,13 +96,10 @@ async def upload_edital(
             status_code=400,
             detail="PDF sem texto extraível (provavelmente digitalizado/imagem).",
         )
-    try:
-        return await edital_agent.run(current_user, db, raw, filename=file.filename)
-    except ProviderError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return await _enqueue_edital(current_user, db, raw, filename=file.filename)
 
 
-@router.post("/from-url", response_model=EditalOut, status_code=201)
+@router.post("/from-url", response_model=JobOut, status_code=202)
 async def edital_from_url(
     data: EditalFromUrl,
     current_user: User = Depends(require_user),
@@ -118,7 +127,4 @@ async def edital_from_url(
         )
 
     filename = url.rsplit("/", 1)[-1] or None
-    try:
-        return await edital_agent.run(current_user, db, raw, source_url=url, filename=filename)
-    except ProviderError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    return await _enqueue_edital(current_user, db, raw, source_url=url, filename=filename)

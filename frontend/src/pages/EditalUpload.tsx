@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, uploadFile, type Edital } from '../lib/api'
+import { api, uploadFile, pollJob, type Edital } from '../lib/api'
 
 function brl(v: number | null) {
   if (v == null) return null
@@ -76,8 +76,8 @@ export default function EditalUpload() {
     setError(null)
     setResult(null)
     try {
-      const e = await uploadFile<Edital>('/editais/upload', file)
-      setResult(e)
+      const job = await uploadFile<{ id: string }>('/editais/upload', file)
+      setResult(await pollJob<Edital>(job.id))
       await loadRecent()
     } catch (err) {
       setError((err as Error).message)
@@ -92,8 +92,8 @@ export default function EditalUpload() {
     setError(null)
     setResult(null)
     try {
-      const e = await api.post<Edital>('/editais/from-url', { url: url.trim() })
-      setResult(e)
+      const job = await api.post<{ id: string }>('/editais/from-url', { url: url.trim() })
+      setResult(await pollJob<Edital>(job.id))
       setUrl('')
       await loadRecent()
     } catch (err) {

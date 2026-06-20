@@ -58,6 +58,7 @@
 | 7 | **M7 Seções** — generate per section_type with context, accept/edit/regen | **done** |
 | 6b | Edital from URL (server-side fetch + SSRF guard) | **done** |
 | 8 | **M8 Export** — DOCX (python-docx) + PDF (WeasyPrint) | **done** |
+| 8c | ARQ background jobs — diagnostic/edital/section off-request + job polling | **done** |
 | 9 | Design system pass + Landing + workspace polish | todo |
 | 10 | Planos + Mercado Pago + credit/plan gating | todo |
 | 11 | Clerk prod instance, secrets via env_file, observability (Sentry/Plausible) | todo |

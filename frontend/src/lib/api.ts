@@ -63,6 +63,29 @@ export const api = {
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
 }
 
+export interface Job<T = unknown> {
+  id: string
+  kind: string
+  status: 'queued' | 'running' | 'done' | 'error'
+  result: T | null
+  error: string | null
+}
+
+// Poll an async job until it finishes; resolve with its result or throw its error.
+export async function pollJob<T>(
+  jobId: string,
+  { interval = 1500, timeout = 180000 }: { interval?: number; timeout?: number } = {},
+): Promise<T> {
+  const start = Date.now()
+  for (;;) {
+    const job = await api.get<Job<T>>(`/jobs/${jobId}`)
+    if (job.status === 'done') return job.result as T
+    if (job.status === 'error') throw new Error(job.error || 'Falha no processamento')
+    if (Date.now() - start > timeout) throw new Error('Tempo esgotado — tente de novo')
+    await new Promise((r) => setTimeout(r, interval))
+  }
+}
+
 // POST that returns a binary file, and triggers a browser download.
 export async function downloadPost(path: string, body: unknown, fallbackName: string): Promise<void> {
   const token = await getClerkToken()

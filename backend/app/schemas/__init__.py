@@ -157,6 +157,17 @@ class OpenRouterExchange(BaseModel):
 class ProviderSelect(BaseModel):
     provider: str          # which connected provider to use for AI calls
 
+# --- Jobs (async) ---
+
+class JobOut(BaseModel):
+    id: uuid.UUID
+    kind: str
+    status: str            # queued | running | done | error
+    result: dict | None
+    error: str | None
+
+    model_config = {"from_attributes": True}
+
 # --- Export ---
 
 class ExportRequest(BaseModel):

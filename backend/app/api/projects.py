@@ -9,16 +9,15 @@ from ..models.user import User
 from ..models.project import Project, ProjectSection, Diagnostic, Conversation, Message
 from fastapi import Response
 
+from ..models.job import Job
 from ..schemas import (
     ProjectCreate, ProjectUpdate, ProjectOut,
-    SectionOut, SectionUpdate, SectionGenerateRequest, SectionDraft,
-    DiagnoseResponse, ExportRequest,
+    SectionOut, SectionUpdate, SectionGenerateRequest,
+    DiagnoseResponse, ExportRequest, JobOut,
     ConversationOut, MessageOut, MessageCreate,
 )
-from ..services.ai import ProviderError
-from ..services.ai.agents import diagnostic as diagnostic_agent
-from ..services.ai.agents import section as section_agent
 from ..services import export_service
+from ..workers.queue import get_pool
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -170,7 +169,7 @@ async def save_section(
     return section
 
 
-@router.post("/{project_id}/sections/{section_type}/generate", response_model=SectionDraft)
+@router.post("/{project_id}/sections/{section_type}/generate", response_model=JobOut, status_code=202)
 async def generate_section(
     project_id: uuid.UUID,
     section_type: str,
@@ -181,31 +180,25 @@ async def generate_section(
     proj = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
-    project = proj.scalar_one_or_none()
-    if not project:
+    if proj.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
-    secs = await db.execute(
-        select(ProjectSection).where(ProjectSection.project_id == project_id)
-    )
-    sections = list(secs.scalars().all())
+    job = Job(user_id=current_user.id, kind="section")
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
 
-    try:
-        result = await section_agent.run(
-            current_user, db, project, sections, section_type,
-            data.context if data else None,
-        )
-    except ProviderError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    return SectionDraft(
-        section_type=section_type, content=result.content, generated_by=result.provider
+    pool = await get_pool()
+    await pool.enqueue_job(
+        "run_section_job", str(job.id), str(current_user.id), str(project_id),
+        section_type, data.context if data else None,
     )
+    return job
 
 
 # --- Diagnostics ---
 
-@router.post("/{project_id}/diagnose", response_model=DiagnoseResponse)
+@router.post("/{project_id}/diagnose", response_model=JobOut, status_code=202)
 async def run_diagnostic(
     project_id: uuid.UUID,
     current_user: User = Depends(require_user),
@@ -214,31 +207,17 @@ async def run_diagnostic(
     proj = await db.execute(
         select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
     )
-    project = proj.scalar_one_or_none()
-    if not project:
+    if proj.scalar_one_or_none() is None:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
-    secs = await db.execute(
-        select(ProjectSection).where(ProjectSection.project_id == project_id)
-    )
-    sections = list(secs.scalars().all())
+    job = Job(user_id=current_user.id, kind="diagnostic")
+    db.add(job)
+    await db.commit()
+    await db.refresh(job)
 
-    try:
-        diag = await diagnostic_agent.run(current_user, db, project, sections)
-    except ProviderError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-    return DiagnoseResponse(
-        id=diag.id,
-        overall_score=diag.overall_score,
-        scores=diag.scores_json,
-        strengths=diag.strengths,
-        weaknesses=diag.weaknesses,
-        risks=diag.risks,
-        edital_matches=diag.edital_matches,
-        next_steps=diag.next_steps,
-        created_at=diag.created_at,
-    )
+    pool = await get_pool()
+    await pool.enqueue_job("run_diagnostic_job", str(job.id), str(current_user.id), str(project_id))
+    return job
 
 
 @router.get("/{project_id}/diagnostics", response_model=list[DiagnoseResponse])
