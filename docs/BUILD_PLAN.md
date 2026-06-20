@@ -61,11 +61,24 @@
 | 8c | ARQ background jobs — diagnostic/edital/section off-request + job polling | **done** |
 | 9 | Design system pass + Landing + workspace polish | todo |
 | 10 | Planos + Mercado Pago + credit/plan gating | todo |
-| 11 | Clerk prod instance, secrets via env_file, observability (Sentry/Plausible) | todo |
+| 11 | Hardening + observability (Sentry/Plausible) | partial |
 
 ## Security backlog (do before public launch)
-- Rotate SSH password; disable password auth, key-only.
-- Move prod compose secrets to `env_file:`; rotate `ENCRYPTION_KEY`, DB pass, Clerk secret
-  (they were exposed in the committed/inspected compose).
-- Encrypt BYOK keys (step 2).
-- Swap Clerk `pk_test_*` for production instance.
+
+Done:
+- BYOK provider keys encrypted at rest (Fernet) — step 2.
+- Prod backend + worker read secrets from `env_file: ../.env` (no inline app secrets
+  in the server compose); committed compose uses `${VAR}` substitution — repo is
+  secret-free and open-source-safe. `.env` / `docker/.env` are gitignored.
+- `DEBUG=false` in prod; `CLERK_SECRET_KEY` now the real value (was a `***` placeholder).
+
+Remaining — **need Rafa / Clerk dashboard / server owner**:
+- **Clerk production instance**: replace `pk_test_*` / `sk_test_*` with a `pk_live`/`sk_live`
+  prod instance before public launch (dev keys have strict limits).
+- **SSH**: rotate the root password, then disable password auth (key-only) — set up an
+  SSH key first so you don't lock yourself out.
+- **Rotate exposed creds** (they were read during setup): DB password, `CLERK_SECRET_KEY`.
+  Do NOT rotate `ENCRYPTION_KEY` casually — it invalidates every stored BYOK key (users
+  would have to reconnect their providers).
+- Postgres password is still inline in the server compose (internal-only network); move to
+  `docker/.env` substitution if desired.
