@@ -155,7 +155,12 @@ export interface Project {
   area: string | null
   city: string | null
   state: string | null
+  target_aud: string | null
   phase: string | null
+  budget_approx: number | null
+  deadline: string | null
+  objective: string | null
+  description: string | null
   status: string
   brief: string | null
   pins: string[] | null
@@ -170,13 +175,10 @@ export interface ProjectSection {
   version: number
 }
 
-export type Band = 'solido' | 'atencao' | 'fragil'
-
 export interface Diagnostic {
   id: string
-  overall_band: Band | null
   summary: string | null
-  dimensions: Record<string, Band>
+  dimensions: Record<string, string>   // comentário textual por quesito
   strengths: string[]
   weaknesses: string[]
   risks: string[]

@@ -94,6 +94,22 @@ async def update_project(
     return project
 
 
+@router.post("/{project_id}/brief", status_code=202)
+async def refresh_brief(
+    project_id: uuid.UUID,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """Manually (re)generate the project's memory brief — useful for older projects."""
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    if result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    await _enqueue_brief(current_user.id, project_id)
+    return {"status": "queued"}
+
+
 @router.put("/{project_id}/pins", response_model=ProjectOut)
 async def update_pins(
     project_id: uuid.UUID,
@@ -262,7 +278,6 @@ async def list_diagnostics(
     return [
         DiagnoseResponse(
             id=d.id,
-            overall_band=d.overall_band,
             summary=d.summary,
             dimensions=d.scores_json,
             strengths=d.strengths,

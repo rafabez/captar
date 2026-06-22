@@ -52,7 +52,12 @@ class ProjectOut(BaseModel):
     area: str | None
     city: str | None
     state: str | None
+    target_aud: str | None = None
     phase: str | None
+    budget_approx: float | None = None
+    deadline: date | None = None
+    objective: str | None = None
+    description: str | None = None
     status: str
     brief: str | None = None        # auto-derived project memory
     pins: list | None = None        # user-pinned facts
@@ -90,9 +95,8 @@ class SectionDraft(BaseModel):
 
 class DiagnoseResponse(BaseModel):
     id: uuid.UUID
-    overall_band: str | None        # solido | atencao | fragil
     summary: str | None             # narrative prose
-    dimensions: dict | None         # {dimension: band}
+    dimensions: dict | None         # {dimension: comentário textual}
     strengths: list | None
     weaknesses: list | None
     risks: list | None

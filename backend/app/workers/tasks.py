@@ -40,7 +40,6 @@ async def run_diagnostic_job(ctx, job_id: str, user_id: str, project_id: str) ->
             diag = await diagnostic_agent.run(user, db, project, list(secs))
             result = {
                 "id": str(diag.id),
-                "overall_band": diag.overall_band,
                 "summary": diag.summary,
                 "dimensions": diag.scores_json,
                 "strengths": diag.strengths,

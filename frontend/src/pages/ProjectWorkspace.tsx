@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api, downloadPost, pollJob, type Project, type Diagnostic, type Band } from '../lib/api'
+import { api, downloadPost, pollJob, type Project, type Diagnostic } from '../lib/api'
 
 const DIM_LABELS: Record<string, string> = {
   conceito: 'Conceito', narrativa: 'Narrativa', orcamento: 'Orçamento',
@@ -15,24 +15,9 @@ const SECTIONS: { id: string; label: string }[] = [
   { id: 'schedule', label: 'Cronograma' }, { id: 'team', label: 'Equipe' },
   { id: 'communication', label: 'Comunicação' }, { id: 'budget', label: 'Orçamento' },
 ]
+const AREAS = ['Audiovisual', 'Música', 'Teatro', 'Dança', 'Artes Visuais', 'Literatura', 'Patrimônio', 'Cultura Popular', 'Circo', 'Outro']
 
-const BAND: Record<Band, { label: string; cls: string }> = {
-  solido: { label: 'Sólido', cls: 'bg-moss/15 text-moss' },
-  atencao: { label: 'Atenção', cls: 'bg-ochre/15 text-ochre' },
-  fragil: { label: 'Frágil', cls: 'bg-terracotta/15 text-terracotta' },
-}
-
-function BandBadge({ band, big }: { band: Band | null; big?: boolean }) {
-  if (!band || !BAND[band]) return null
-  const { label, cls } = BAND[band]
-  return (
-    <span className={`inline-flex items-center rounded-full font-semibold ${cls} ${
-      big ? 'px-4 py-1.5 text-sm' : 'px-2.5 py-0.5 text-xs'
-    }`}>
-      {label}
-    </span>
-  )
-}
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
 function List({ title, items, color }: { title: string; items: string[]; color: string }) {
   if (!items?.length) return null
@@ -48,34 +33,134 @@ function List({ title, items, color }: { title: string; items: string[]; color: 
   )
 }
 
+function ProjectTab({ project, onChange }: { project: Project | null; onChange: (p: Project) => void }) {
+  const map = (p: Project) => ({
+    name: p.name || '', area: p.area || '', city: p.city || '', state: p.state || '',
+    target_aud: p.target_aud || '', phase: p.phase || '',
+    budget_approx: p.budget_approx != null ? String(p.budget_approx) : '',
+    deadline: p.deadline || '', objective: p.objective || '', description: p.description || '',
+  })
+  const [form, setForm] = useState(() => (project ? map(project) : null))
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+
+  useEffect(() => { if (project) setForm(map(project)) }, [project?.id])
+  if (!project || !form) return null
+  const set = (k: string, v: string) => setForm((f) => ({ ...f!, [k]: v }))
+
+  async function save() {
+    setSaving(true); setStatus(null)
+    try {
+      const updated = await api.patch<Project>(`/projects/${project!.id}`, {
+        ...form,
+        budget_approx: form!.budget_approx ? Number(form!.budget_approx) : null,
+        deadline: form!.deadline || null,
+      })
+      onChange(updated)
+      setStatus('Salvo. A memória do projeto vai atualizar em instantes.')
+    } catch (e) { setStatus(`Erro: ${(e as Error).message}`) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="card-pad space-y-5 max-w-2xl">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-2xl font-bold text-ink">Dados do projeto</h2>
+        <button onClick={save} disabled={saving} className="btn btn-primary">{saving ? 'Salvando…' : 'Salvar'}</button>
+      </div>
+      {status && <div className="text-sm text-moss">{status}</div>}
+
+      <div><label className="label">Nome</label>
+        <input className="input" value={form.name} onChange={(e) => set('name', e.target.value)} /></div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="label">Área</label>
+          <select className="input" value={form.area} onChange={(e) => set('area', e.target.value)}>
+            <option value="">—</option>{AREAS.map((a) => <option key={a} value={a}>{a}</option>)}
+          </select></div>
+        <div><label className="label">Fase</label>
+          <select className="input" value={form.phase} onChange={(e) => set('phase', e.target.value)}>
+            <option value="">—</option>
+            <option value="ideia">Ideia</option>
+            <option value="desenvolvimento">Em desenvolvimento</option>
+            <option value="pronto">Pronto para captar</option>
+          </select></div>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2"><label className="label">Cidade</label>
+          <input className="input" value={form.city} onChange={(e) => set('city', e.target.value)} /></div>
+        <div><label className="label">UF</label>
+          <input className="input" maxLength={2} value={form.state} onChange={(e) => set('state', e.target.value.toUpperCase())} /></div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div><label className="label">Orçamento (R$)</label>
+          <input className="input" type="number" value={form.budget_approx} onChange={(e) => set('budget_approx', e.target.value)} /></div>
+        <div><label className="label">Prazo</label>
+          <input className="input" type="date" value={form.deadline} onChange={(e) => set('deadline', e.target.value)} /></div>
+      </div>
+
+      <div><label className="label">Público-alvo</label>
+        <input className="input" value={form.target_aud} onChange={(e) => set('target_aud', e.target.value)} /></div>
+      <div><label className="label">Objetivo</label>
+        <input className="input" value={form.objective} onChange={(e) => set('objective', e.target.value)} /></div>
+      <div><label className="label">Descrição</label>
+        <textarea className="input h-32 resize-none" value={form.description} onChange={(e) => set('description', e.target.value)} /></div>
+    </div>
+  )
+}
+
 function MemoryPanel({ project, onChange }: { project: Project | null; onChange: (p: Project) => void }) {
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
+  const [briefBusy, setBriefBusy] = useState(false)
   const pins = project?.pins || []
 
   async function savePins(next: string[]) {
     if (!project) return
     setBusy(true)
-    try {
-      onChange(await api.put<Project>(`/projects/${project.id}/pins`, { pins: next }))
-    } finally { setBusy(false) }
+    try { onChange(await api.put<Project>(`/projects/${project.id}/pins`, { pins: next })) }
+    finally { setBusy(false) }
   }
   const addPin = () => { const v = draft.trim(); if (v) { savePins([...pins, v]); setDraft('') } }
   const removePin = (i: number) => savePins(pins.filter((_, j) => j !== i))
 
+  async function refreshBrief() {
+    if (!project) return
+    setBriefBusy(true)
+    const before = project.brief
+    try {
+      await api.post(`/projects/${project.id}/brief`, {})
+      for (let i = 0; i < 12; i++) {
+        await sleep(3000)
+        const p = await api.get<Project>(`/projects/${project.id}`)
+        if (p.brief && p.brief !== before) { onChange(p); break }
+      }
+    } catch { /* ignore */ }
+    finally { setBriefBusy(false) }
+  }
+
   return (
     <div className="space-y-6">
       <div className="card-pad">
-        <p className="eyebrow mb-1">Memória do projeto</p>
-        <h2 className="font-display text-2xl font-bold text-ink mb-1">Briefing</h2>
+        <div className="flex items-center justify-between mb-1">
+          <div>
+            <p className="eyebrow mb-1">Memória do projeto</p>
+            <h2 className="font-display text-2xl font-bold text-ink">Briefing</h2>
+          </div>
+          <button onClick={refreshBrief} disabled={briefBusy} className="btn btn-ghost">
+            {briefBusy ? 'Gerando…' : 'Atualizar memória'}
+          </button>
+        </div>
         <p className="text-xs text-ink-soft mb-4">
-          Resumo gerado pela IA, usado em toda análise. Atualiza sozinho quando você edita o projeto.
+          Resumo gerado pela IA, usado em toda análise. Atualiza ao salvar o projeto, ou clique acima.
         </p>
         {project?.brief ? (
           <p className="text-ink/80 leading-relaxed">{project.brief}</p>
         ) : (
           <p className="text-ink-soft text-sm">
-            Ainda sendo gerado (ou conecte uma IA em Configurações e edite o projeto). Atualize a página em instantes.
+            Sem briefing ainda. Clique "Atualizar memória" (precisa de uma IA conectada em Configurações).
           </p>
         )}
       </div>
@@ -83,12 +168,11 @@ function MemoryPanel({ project, onChange }: { project: Project | null; onChange:
       <div className="card-pad">
         <h3 className="font-semibold text-ink mb-1">Fatos fixados</h3>
         <p className="text-xs text-ink-soft mb-4">
-          Coisas que a IA deve sempre considerar (ex.: "já captou na Rouanet em 2023", "parceria com o Sesc").
+          O que a IA deve sempre considerar (ex.: "já captou na Rouanet em 2023", "parceria com o Sesc").
         </p>
         <div className="flex flex-wrap gap-2 mb-3">
           {pins.map((p, i) => (
-            <span key={i} className="chip flex items-center gap-1.5">
-              {p}
+            <span key={i} className="chip flex items-center gap-1.5">{p}
               <button onClick={() => removePin(i)} className="text-ink-soft hover:text-terracotta" disabled={busy}>×</button>
             </span>
           ))}
@@ -112,8 +196,7 @@ function DiagnosticPanel({ id }: { id: string }) {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api.get<Diagnostic[]>(`/projects/${id}/diagnostics`)
-      .then((l) => l[0] && setDiag(l[0])).catch(() => {})
+    api.get<Diagnostic[]>(`/projects/${id}/diagnostics`).then((l) => l[0] && setDiag(l[0])).catch(() => {})
   }, [id])
 
   async function run() {
@@ -145,29 +228,19 @@ function DiagnosticPanel({ id }: { id: string }) {
 
       {diag && (
         <div className="space-y-8">
-          {/* Overall band + narrative */}
-          <div>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-sm text-ink-soft">Leitura geral:</span>
-              <BandBadge band={diag.overall_band} big />
-            </div>
-            {diag.summary && (
-              <div className="text-ink/85 leading-relaxed whitespace-pre-line">{diag.summary}</div>
-            )}
-          </div>
+          {diag.summary && (
+            <div className="text-ink/85 leading-relaxed whitespace-pre-line">{diag.summary}</div>
+          )}
 
-          {/* Dimensions as bands */}
           {diag.dimensions && Object.keys(diag.dimensions).length > 0 && (
-            <div className="pt-2 border-t border-line">
-              <h3 className="text-sm font-semibold text-ink mb-3">Por dimensão</h3>
-              <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2">
-                {Object.entries(diag.dimensions).map(([k, band]) => (
-                  <div key={k} className="flex items-center justify-between py-1">
-                    <span className="text-sm text-ink/80">{DIM_LABELS[k] || k}</span>
-                    <BandBadge band={band} />
-                  </div>
-                ))}
-              </div>
+            <div className="pt-2 border-t border-line space-y-4">
+              <h3 className="text-sm font-semibold text-ink">Por dimensão</h3>
+              {Object.entries(diag.dimensions).map(([k, comment]) => (
+                <div key={k}>
+                  <div className="text-sm font-semibold text-ink">{DIM_LABELS[k] || k}</div>
+                  <p className="text-sm text-ink-soft leading-relaxed">{comment}</p>
+                </div>
+              ))}
             </div>
           )}
 
@@ -284,7 +357,7 @@ function ExportPanel({ id }: { id: string }) {
 export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>()
   const [project, setProject] = useState<Project | null>(null)
-  const [tab, setTab] = useState<'memoria' | 'diag' | 'sections' | 'export'>('diag')
+  const [tab, setTab] = useState<'projeto' | 'memoria' | 'diag' | 'sections' | 'export'>('projeto')
 
   useEffect(() => {
     if (id) api.get<Project>(`/projects/${id}`).then(setProject).catch(() => {})
@@ -292,7 +365,10 @@ export default function ProjectWorkspace() {
 
   if (!id) return null
 
-  const TABS = [['memoria', 'Memória'], ['diag', 'Diagnóstico'], ['sections', 'Seções'], ['export', 'Exportar']] as const
+  const TABS = [
+    ['projeto', 'Projeto'], ['memoria', 'Memória'], ['diag', 'Diagnóstico'],
+    ['sections', 'Seções'], ['export', 'Exportar'],
+  ] as const
 
   return (
     <div>
@@ -314,6 +390,7 @@ export default function ProjectWorkspace() {
         ))}
       </div>
 
+      {tab === 'projeto' && <ProjectTab project={project} onChange={setProject} />}
       {tab === 'memoria' && <MemoryPanel project={project} onChange={setProject} />}
       {tab === 'diag' && <DiagnosticPanel id={id} />}
       {tab === 'sections' && <SectionsPanel id={id} />}

@@ -7,18 +7,17 @@ projeto fornecida abaixo. Aponte forças e fragilidades reais e o caminho recome
 CONTRACT = """Produza o diagnóstico e responda SOMENTE com um objeto JSON válido, sem \
 texto antes ou depois, neste formato:
 {
-  "overall_band": "solido | atencao | fragil",
   "summary": "<2 a 4 parágrafos em PROSA corrida: leitura geral honesta do projeto — o \
 que está forte, o que precisa amadurecer e o caminho recomendado. Cite elementos \
 concretos do projeto. NÃO use bullets aqui.>",
   "dimensions": {
-    "conceito": "solido | atencao | fragil",
-    "narrativa": "solido | atencao | fragil",
-    "orcamento": "solido | atencao | fragil",
-    "equipe": "solido | atencao | fragil",
-    "contrapartidas": "solido | atencao | fragil",
-    "acessibilidade": "solido | atencao | fragil",
-    "documentacao": "solido | atencao | fragil"
+    "conceito": "<comentário curto, específico e honesto sobre o conceito do projeto>",
+    "narrativa": "<comentário sobre a narrativa/justificativa>",
+    "orcamento": "<comentário sobre o orçamento>",
+    "equipe": "<comentário sobre a equipe>",
+    "contrapartidas": "<comentário sobre as contrapartidas>",
+    "acessibilidade": "<comentário sobre acessibilidade>",
+    "documentacao": "<comentário sobre documentação>"
   },
   "strengths": ["<ponto forte concreto>", ...],
   "weaknesses": ["<fragilidade concreta>", ...],
@@ -27,9 +26,9 @@ concretos do projeto. NÃO use bullets aqui.>",
   "next_steps": ["<próximo passo recomendado>", ...]
 }
 
-Bandas: "solido" = bem resolvido; "atencao" = precisa melhorar; "fragil" = gargalo sério.
-NÃO use notas numéricas nem percentuais — apenas as bandas e a prosa. O "summary" deve ter \
-texto real e específico. 3 a 5 itens por lista. Português do Brasil."""
+Cada "dimensions" é um COMENTÁRIO em texto (1-2 frases), não uma nota nem uma classificação. \
+NÃO use notas numéricas, percentuais ou rótulos como "sólido/frágil". Avalie em texto, de \
+forma honesta e específica ao projeto. 3 a 5 itens por lista. Português do Brasil."""
 
 
 def build_sections(sections) -> str:
