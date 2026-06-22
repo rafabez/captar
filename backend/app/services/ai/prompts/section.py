@@ -30,25 +30,15 @@ def system(section_type: str, context: str | None) -> str:
     return SYSTEM.format(label=label, context_hint=hint)
 
 
-def build_user(project, sections) -> str:
-    lines = ["# Dados do projeto", ""]
+TASK = "Escreva agora a seção solicitada, coerente com a memória do projeto e com as seções já escritas."
 
-    def field(lbl: str, value) -> None:
-        if value not in (None, ""):
-            lines.append(f"- {lbl}: {value}")
 
-    field("Nome", project.name)
-    field("Área", project.area)
-    field("Cidade/UF", f"{project.city or ''}/{project.state or ''}".strip("/"))
-    field("Público-alvo", project.target_aud)
-    field("Orçamento aproximado (R$)", project.budget_approx)
-    field("Objetivo", project.objective)
-    field("Descrição", project.description)
-
-    if sections:
-        lines += ["", "## Seções já escritas (para manter coerência)"]
-        for s in sections:
-            if s.content:
-                lines.append(f"### {s.section_type}\n{s.content}")
-
-    return "\n".join(lines)
+def build_context(sections) -> str:
+    """Other already-written sections, for coherence (project facts come from memory)."""
+    if not sections:
+        return ""
+    out = ["## Seções já escritas (mantenha coerência)"]
+    for s in sections:
+        if s.content:
+            out.append(f"### {s.section_type}\n{s.content}")
+    return "\n".join(out)

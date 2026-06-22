@@ -8,6 +8,7 @@ class WorkerSettings:
         tasks.run_diagnostic_job,
         tasks.run_edital_job,
         tasks.run_section_job,
+        tasks.run_brief_job,
     ]
     redis_settings = redis_settings()
     max_jobs = 5

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { api, downloadPost, pollJob, type Project, type Diagnostic } from '../lib/api'
+import { api, downloadPost, pollJob, type Project, type Diagnostic, type Band } from '../lib/api'
 
 const DIM_LABELS: Record<string, string> = {
   conceito: 'Conceito', narrativa: 'Narrativa', orcamento: 'Orçamento',
@@ -9,48 +9,28 @@ const DIM_LABELS: Record<string, string> = {
 }
 
 const SECTIONS: { id: string; label: string }[] = [
-  { id: 'summary', label: 'Resumo' },
-  { id: 'justification', label: 'Justificativa' },
-  { id: 'objectives', label: 'Objetivos' },
-  { id: 'target_audience', label: 'Público-alvo' },
-  { id: 'accessibility', label: 'Acessibilidade' },
-  { id: 'counterparts', label: 'Contrapartidas' },
-  { id: 'schedule', label: 'Cronograma' },
-  { id: 'team', label: 'Equipe' },
-  { id: 'communication', label: 'Comunicação' },
-  { id: 'budget', label: 'Orçamento' },
+  { id: 'summary', label: 'Resumo' }, { id: 'justification', label: 'Justificativa' },
+  { id: 'objectives', label: 'Objetivos' }, { id: 'target_audience', label: 'Público-alvo' },
+  { id: 'accessibility', label: 'Acessibilidade' }, { id: 'counterparts', label: 'Contrapartidas' },
+  { id: 'schedule', label: 'Cronograma' }, { id: 'team', label: 'Equipe' },
+  { id: 'communication', label: 'Comunicação' }, { id: 'budget', label: 'Orçamento' },
 ]
 
-function ScoreRing({ score }: { score: number }) {
-  const r = 54, circ = 2 * Math.PI * r
-  const offset = circ * (1 - Math.max(0, Math.min(100, score)) / 100)
-  return (
-    <div className="relative w-36 h-36 shrink-0">
-      <svg className="w-36 h-36 -rotate-90" viewBox="0 0 120 120">
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#EBE5DB" strokeWidth="9" />
-        <circle cx="60" cy="60" r={r} fill="none" stroke="#C4553F" strokeWidth="9"
-          strokeLinecap="round" strokeDasharray={circ} strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 0.8s ease' }} />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-display text-4xl font-bold text-ink">{score}</span>
-        <span className="text-xs text-ink-soft">Projeto Score</span>
-      </div>
-    </div>
-  )
+const BAND: Record<Band, { label: string; cls: string }> = {
+  solido: { label: 'Sólido', cls: 'bg-moss/15 text-moss' },
+  atencao: { label: 'Atenção', cls: 'bg-ochre/15 text-ochre' },
+  fragil: { label: 'Frágil', cls: 'bg-terracotta/15 text-terracotta' },
 }
 
-function Bar({ label, value }: { label: string; value: number }) {
+function BandBadge({ band, big }: { band: Band | null; big?: boolean }) {
+  if (!band || !BAND[band]) return null
+  const { label, cls } = BAND[band]
   return (
-    <div>
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-ink/80">{label}</span>
-        <span className="text-ink-soft tabular-nums">{value}</span>
-      </div>
-      <div className="h-2 bg-paper-2 rounded-full overflow-hidden">
-        <div className="h-full bg-petroleum rounded-full" style={{ width: `${value}%`, transition: 'width 0.8s ease' }} />
-      </div>
-    </div>
+    <span className={`inline-flex items-center rounded-full font-semibold ${cls} ${
+      big ? 'px-4 py-1.5 text-sm' : 'px-2.5 py-0.5 text-xs'
+    }`}>
+      {label}
+    </span>
   )
 }
 
@@ -64,6 +44,64 @@ function List({ title, items, color }: { title: string; items: string[]; color: 
           <li key={i} className="text-sm text-ink-soft flex gap-2"><span style={{ color }} className="mt-0.5">•</span><span>{it}</span></li>
         ))}
       </ul>
+    </div>
+  )
+}
+
+function MemoryPanel({ project, onChange }: { project: Project | null; onChange: (p: Project) => void }) {
+  const [draft, setDraft] = useState('')
+  const [busy, setBusy] = useState(false)
+  const pins = project?.pins || []
+
+  async function savePins(next: string[]) {
+    if (!project) return
+    setBusy(true)
+    try {
+      onChange(await api.put<Project>(`/projects/${project.id}/pins`, { pins: next }))
+    } finally { setBusy(false) }
+  }
+  const addPin = () => { const v = draft.trim(); if (v) { savePins([...pins, v]); setDraft('') } }
+  const removePin = (i: number) => savePins(pins.filter((_, j) => j !== i))
+
+  return (
+    <div className="space-y-6">
+      <div className="card-pad">
+        <p className="eyebrow mb-1">Memória do projeto</p>
+        <h2 className="font-display text-2xl font-bold text-ink mb-1">Briefing</h2>
+        <p className="text-xs text-ink-soft mb-4">
+          Resumo gerado pela IA, usado em toda análise. Atualiza sozinho quando você edita o projeto.
+        </p>
+        {project?.brief ? (
+          <p className="text-ink/80 leading-relaxed">{project.brief}</p>
+        ) : (
+          <p className="text-ink-soft text-sm">
+            Ainda sendo gerado (ou conecte uma IA em Configurações e edite o projeto). Atualize a página em instantes.
+          </p>
+        )}
+      </div>
+
+      <div className="card-pad">
+        <h3 className="font-semibold text-ink mb-1">Fatos fixados</h3>
+        <p className="text-xs text-ink-soft mb-4">
+          Coisas que a IA deve sempre considerar (ex.: "já captou na Rouanet em 2023", "parceria com o Sesc").
+        </p>
+        <div className="flex flex-wrap gap-2 mb-3">
+          {pins.map((p, i) => (
+            <span key={i} className="chip flex items-center gap-1.5">
+              {p}
+              <button onClick={() => removePin(i)} className="text-ink-soft hover:text-terracotta" disabled={busy}>×</button>
+            </span>
+          ))}
+          {pins.length === 0 && <span className="text-sm text-ink-soft">Nenhum fato fixado ainda.</span>}
+        </div>
+        <div className="flex gap-2">
+          <input className="input" value={draft} disabled={busy}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && addPin()}
+            placeholder="Adicionar um fato e Enter" />
+          <button onClick={addPin} disabled={busy || !draft.trim()} className="btn btn-ghost shrink-0">Fixar</button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -90,7 +128,7 @@ function DiagnosticPanel({ id }: { id: string }) {
   return (
     <div className="card-pad">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-2xl font-bold text-ink">Maturidade do projeto</h2>
+        <h2 className="font-display text-2xl font-bold text-ink">Diagnóstico</h2>
         <button onClick={run} disabled={running} className="btn btn-primary">
           {running ? 'Analisando… (até 30s)' : diag ? 'Rodar de novo' : 'Rodar diagnóstico'}
         </button>
@@ -100,25 +138,59 @@ function DiagnosticPanel({ id }: { id: string }) {
 
       {!diag && !running && (
         <div className="text-center text-ink-soft py-14">
-          <p className="mb-1">Rode o diagnóstico para ver o Projeto Score e as recomendações.</p>
+          <p className="mb-1">Rode o diagnóstico para uma leitura honesta do projeto.</p>
           <p className="text-xs">Precisa de uma IA conectada em <Link to="/settings" className="text-petroleum underline">Configurações</Link>.</p>
         </div>
       )}
 
       {diag && (
         <div className="space-y-8">
-          <div className="flex flex-col sm:flex-row items-center gap-8">
-            <ScoreRing score={diag.overall_score ?? 0} />
-            <div className="flex-1 w-full space-y-3">
-              {Object.entries(diag.scores || {}).map(([k, v]) => <Bar key={k} label={DIM_LABELS[k] || k} value={v} />)}
+          {/* Overall band + narrative */}
+          <div>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="text-sm text-ink-soft">Leitura geral:</span>
+              <BandBadge band={diag.overall_band} big />
             </div>
+            {diag.summary && (
+              <div className="text-ink/85 leading-relaxed whitespace-pre-line">{diag.summary}</div>
+            )}
           </div>
+
+          {/* Dimensions as bands */}
+          {diag.dimensions && Object.keys(diag.dimensions).length > 0 && (
+            <div className="pt-2 border-t border-line">
+              <h3 className="text-sm font-semibold text-ink mb-3">Por dimensão</h3>
+              <div className="grid sm:grid-cols-2 gap-x-8 gap-y-2">
+                {Object.entries(diag.dimensions).map(([k, band]) => (
+                  <div key={k} className="flex items-center justify-between py-1">
+                    <span className="text-sm text-ink/80">{DIM_LABELS[k] || k}</span>
+                    <BandBadge band={band} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="grid sm:grid-cols-2 gap-x-8 gap-y-6 pt-2 border-t border-line">
-            <List title="✅ Pontos fortes" items={diag.strengths} color="#1B4D5C" />
+            <List title="✅ Pontos fortes" items={diag.strengths} color="#3D7A5C" />
             <List title="🔴 Fragilidades" items={diag.weaknesses} color="#C4553F" />
             <List title="⚠️ Riscos" items={diag.risks} color="#C4943A" />
             <List title="→ Próximos passos" items={diag.next_steps} color="#211C16" />
           </div>
+
+          {diag.edital_matches?.length > 0 && (
+            <div className="pt-2 border-t border-line">
+              <h3 className="text-sm font-semibold text-ink mb-3">Editais compatíveis</h3>
+              <ul className="space-y-2">
+                {diag.edital_matches.map((m, i) => (
+                  <li key={i} className="text-sm">
+                    <span className="font-medium text-ink">{m.name}</span>
+                    {m.note && <span className="text-ink-soft"> — {m.note}</span>}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -135,8 +207,7 @@ function SectionsPanel({ id }: { id: string }) {
   useEffect(() => {
     setStatus(null)
     api.get<{ content: string | null }>(`/projects/${id}/sections/${active}`)
-      .then((s) => setContent(s.content || ''))
-      .catch(() => setContent(''))
+      .then((s) => setContent(s.content || '')).catch(() => setContent(''))
   }, [id, active])
 
   async function generate() {
@@ -148,13 +219,10 @@ function SectionsPanel({ id }: { id: string }) {
     } catch (e) { setStatus(`Erro: ${(e as Error).message}`) }
     finally { setBusy(null) }
   }
-
   async function save() {
     setBusy('save'); setStatus(null)
-    try {
-      await api.put(`/projects/${id}/sections/${active}`, { content })
-      setStatus('Seção salva.')
-    } catch (e) { setStatus(`Erro: ${(e as Error).message}`) }
+    try { await api.put(`/projects/${id}/sections/${active}`, { content }); setStatus('Seção salva.') }
+    catch (e) { setStatus(`Erro: ${(e as Error).message}`) }
     finally { setBusy(null) }
   }
 
@@ -164,26 +232,22 @@ function SectionsPanel({ id }: { id: string }) {
         {SECTIONS.map((s) => (
           <button key={s.id} onClick={() => setActive(s.id)}
             className={`text-left rounded-lg px-3 py-2 text-sm whitespace-nowrap transition-colors ${
-              active === s.id ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-paper-2'
-            }`}>
+              active === s.id ? 'bg-ink text-paper' : 'text-ink-soft hover:bg-paper-2'}`}>
             {s.label}
           </button>
         ))}
       </div>
-
       <div className="card-pad">
         <div className="flex items-center gap-2 mb-3">
           <input className="input" value={context} onChange={(e) => setContext(e.target.value)}
-            placeholder="Contexto opcional: Lei Rouanet, ProAC, edital municipal…" />
+            placeholder="Contexto opcional: Lei Rouanet, ProAC…" />
           <button onClick={generate} disabled={!!busy} className="btn btn-primary shrink-0">
             {busy === 'gen' ? 'Gerando…' : 'Gerar com IA'}
           </button>
         </div>
-
         <textarea value={content} onChange={(e) => setContent(e.target.value)}
           placeholder="Gere com IA ou escreva aqui. Edite à vontade e salve."
           className="input h-80 resize-y leading-relaxed" />
-
         <div className="flex items-center gap-3 mt-3">
           <button onClick={save} disabled={!!busy || !content.trim()} className="btn btn-petrol">
             {busy === 'save' ? 'Salvando…' : 'Salvar seção'}
@@ -198,29 +262,20 @@ function SectionsPanel({ id }: { id: string }) {
 function ExportPanel({ id }: { id: string }) {
   const [busy, setBusy] = useState<'docx' | 'pdf' | null>(null)
   const [error, setError] = useState<string | null>(null)
-
   async function exp(fmt: 'docx' | 'pdf') {
     setBusy(fmt); setError(null)
     try { await downloadPost(`/projects/${id}/export`, { format: fmt }, `projeto.${fmt}`) }
     catch (e) { setError((e as Error).message) }
     finally { setBusy(null) }
   }
-
   return (
     <div className="card-pad">
       <h2 className="font-display text-2xl font-bold text-ink mb-2">Exportar projeto</h2>
-      <p className="text-ink-soft text-sm mb-6">
-        Gera um documento com todas as seções salvas, pronto para submissão.
-        Salve as seções na aba Seções antes de exportar.
-      </p>
+      <p className="text-ink-soft text-sm mb-6">Gera um documento com as seções salvas, pronto para submissão.</p>
       {error && <div className="rounded-xl bg-terracotta/8 border border-terracotta/20 text-terracotta text-sm px-4 py-3 mb-4">{error}</div>}
       <div className="flex gap-3">
-        <button onClick={() => exp('docx')} disabled={!!busy} className="btn btn-primary">
-          {busy === 'docx' ? 'Gerando…' : 'Baixar DOCX'}
-        </button>
-        <button onClick={() => exp('pdf')} disabled={!!busy} className="btn btn-ghost">
-          {busy === 'pdf' ? 'Gerando…' : 'Baixar PDF'}
-        </button>
+        <button onClick={() => exp('docx')} disabled={!!busy} className="btn btn-primary">{busy === 'docx' ? 'Gerando…' : 'Baixar DOCX'}</button>
+        <button onClick={() => exp('pdf')} disabled={!!busy} className="btn btn-ghost">{busy === 'pdf' ? 'Gerando…' : 'Baixar PDF'}</button>
       </div>
     </div>
   )
@@ -229,13 +284,15 @@ function ExportPanel({ id }: { id: string }) {
 export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>()
   const [project, setProject] = useState<Project | null>(null)
-  const [tab, setTab] = useState<'diag' | 'sections' | 'export'>('diag')
+  const [tab, setTab] = useState<'memoria' | 'diag' | 'sections' | 'export'>('diag')
 
   useEffect(() => {
     if (id) api.get<Project>(`/projects/${id}`).then(setProject).catch(() => {})
   }, [id])
 
   if (!id) return null
+
+  const TABS = [['memoria', 'Memória'], ['diag', 'Diagnóstico'], ['sections', 'Seções'], ['export', 'Exportar']] as const
 
   return (
     <div>
@@ -248,16 +305,16 @@ export default function ProjectWorkspace() {
       </div>
 
       <div className="flex gap-1 mb-6 border-b border-line">
-        {([['diag', 'Diagnóstico'], ['sections', 'Seções'], ['export', 'Exportar']] as const).map(([k, label]) => (
+        {TABS.map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)}
             className={`px-4 py-2 text-sm -mb-px border-b-2 transition-colors ${
-              tab === k ? 'border-terracotta text-ink font-medium' : 'border-transparent text-ink-soft hover:text-ink'
-            }`}>
+              tab === k ? 'border-terracotta text-ink font-medium' : 'border-transparent text-ink-soft hover:text-ink'}`}>
             {label}
           </button>
         ))}
       </div>
 
+      {tab === 'memoria' && <MemoryPanel project={project} onChange={setProject} />}
       {tab === 'diag' && <DiagnosticPanel id={id} />}
       {tab === 'sections' && <SectionsPanel id={id} />}
       {tab === 'export' && <ExportPanel id={id} />}

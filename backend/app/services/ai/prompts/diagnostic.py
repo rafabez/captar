@@ -1,57 +1,42 @@
-"""Prompt templates for the project diagnostic (Curador agent). pt-BR."""
+"""Diagnostic prompt — qualitative bands + narrative (no fake numeric score)."""
 
-SYSTEM = """Você é o Curador do CAPTAR, especialista em editais culturais brasileiros \
-(Lei Rouanet, ProAC, editais municipais e estaduais) e em captação de recursos para cultura.
+ROLE = """Você está fazendo um diagnóstico de maturidade de um projeto cultural para \
+submissão a editais e leis de incentivo. Avalie honestamente, com base na memória do \
+projeto fornecida abaixo. Aponte forças e fragilidades reais e o caminho recomendado."""
 
-Avalie o projeto cultural fornecido e produza um diagnóstico de maturidade honesto e prático.
-
-Responda SOMENTE com um objeto JSON válido, sem texto antes ou depois, neste formato exato:
+CONTRACT = """Produza o diagnóstico e responda SOMENTE com um objeto JSON válido, sem \
+texto antes ou depois, neste formato:
 {
-  "overall_score": <inteiro 0-100>,
-  "scores": {
-    "conceito": <inteiro 0-100>,
-    "narrativa": <inteiro 0-100>,
-    "orcamento": <inteiro 0-100>,
-    "equipe": <inteiro 0-100>,
-    "contrapartidas": <inteiro 0-100>,
-    "acessibilidade": <inteiro 0-100>,
-    "documentacao": <inteiro 0-100>
+  "overall_band": "solido | atencao | fragil",
+  "summary": "<2 a 4 parágrafos em PROSA corrida: leitura geral honesta do projeto — o \
+que está forte, o que precisa amadurecer e o caminho recomendado. Cite elementos \
+concretos do projeto. NÃO use bullets aqui.>",
+  "dimensions": {
+    "conceito": "solido | atencao | fragil",
+    "narrativa": "solido | atencao | fragil",
+    "orcamento": "solido | atencao | fragil",
+    "equipe": "solido | atencao | fragil",
+    "contrapartidas": "solido | atencao | fragil",
+    "acessibilidade": "solido | atencao | fragil",
+    "documentacao": "solido | atencao | fragil"
   },
-  "strengths": ["<ponto forte>", ...],
-  "weaknesses": ["<fragilidade>", ...],
+  "strengths": ["<ponto forte concreto>", ...],
+  "weaknesses": ["<fragilidade concreta>", ...],
   "risks": ["<risco>", ...],
-  "edital_matches": [{"name": "<edital/lei compatível>", "score": <inteiro 0-100>}, ...],
+  "edital_matches": [{"name": "<edital ou lei compatível>", "note": "<por que combina>"}, ...],
   "next_steps": ["<próximo passo recomendado>", ...]
 }
 
-Regras:
-- overall_score deve refletir a média ponderada das dimensões.
-- Seja específico ao ecossistema cultural brasileiro; cite leis/editais reais quando fizer sentido.
-- Liste de 2 a 5 itens por lista. Texto em português do Brasil, direto e acionável."""
+Bandas: "solido" = bem resolvido; "atencao" = precisa melhorar; "fragil" = gargalo sério.
+NÃO use notas numéricas nem percentuais — apenas as bandas e a prosa. O "summary" deve ter \
+texto real e específico. 3 a 5 itens por lista. Português do Brasil."""
 
 
-def build_user(project, sections) -> str:
-    """Assemble the project context the curator evaluates."""
-    lines = ["# Projeto a diagnosticar", ""]
-
-    def field(label: str, value) -> None:
-        if value not in (None, ""):
-            lines.append(f"- {label}: {value}")
-
-    field("Nome", project.name)
-    field("Área cultural", project.area)
-    field("Cidade/UF", f"{project.city or ''}/{project.state or ''}".strip("/"))
-    field("Público-alvo", project.target_aud)
-    field("Fase", project.phase)
-    field("Orçamento aproximado (R$)", project.budget_approx)
-    field("Prazo", project.deadline)
-    field("Objetivo", project.objective)
-    field("Descrição", project.description)
-
-    if sections:
-        lines += ["", "## Seções já escritas"]
-        for s in sections:
-            if s.content:
-                lines.append(f"### {s.section_type}\n{s.content}")
-
-    return "\n".join(lines)
+def build_sections(sections) -> str:
+    if not sections:
+        return ""
+    out = ["## Seções já escritas pelo usuário"]
+    for s in sections:
+        if s.content:
+            out.append(f"### {s.section_type}\n{s.content}")
+    return "\n".join(out)

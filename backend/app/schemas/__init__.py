@@ -54,10 +54,15 @@ class ProjectOut(BaseModel):
     state: str | None
     phase: str | None
     status: str
+    brief: str | None = None        # auto-derived project memory
+    pins: list | None = None        # user-pinned facts
     updated_at: datetime
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class PinsUpdate(BaseModel):
+    pins: list[str]
 
 # --- Sections ---
 
@@ -85,16 +90,15 @@ class SectionDraft(BaseModel):
 
 class DiagnoseResponse(BaseModel):
     id: uuid.UUID
-    overall_score: int | None
-    scores: dict | None
+    overall_band: str | None        # solido | atencao | fragil
+    summary: str | None             # narrative prose
+    dimensions: dict | None         # {dimension: band}
     strengths: list | None
     weaknesses: list | None
     risks: list | None
-    edital_matches: list | None
+    edital_matches: list | None     # [{name, note}]
     next_steps: list | None
     created_at: datetime
-
-    model_config = {"from_attributes": True}
 
 # --- Conversations ---
 

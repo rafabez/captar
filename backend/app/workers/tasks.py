@@ -11,6 +11,7 @@ from ..services.ai import ProviderError
 from ..services.ai.agents import diagnostic as diagnostic_agent
 from ..services.ai.agents import edital as edital_agent
 from ..services.ai.agents import section as section_agent
+from ..services.ai.agents import brief as brief_agent
 
 
 async def _set(job_id: str, **fields) -> None:
@@ -39,8 +40,9 @@ async def run_diagnostic_job(ctx, job_id: str, user_id: str, project_id: str) ->
             diag = await diagnostic_agent.run(user, db, project, list(secs))
             result = {
                 "id": str(diag.id),
-                "overall_score": diag.overall_score,
-                "scores": diag.scores_json,
+                "overall_band": diag.overall_band,
+                "summary": diag.summary,
+                "dimensions": diag.scores_json,
                 "strengths": diag.strengths,
                 "weaknesses": diag.weaknesses,
                 "risks": diag.risks,
@@ -97,3 +99,21 @@ async def run_section_job(ctx, job_id: str, user_id: str, project_id: str,
         await _set(job_id, status="error", error=str(e))
     except Exception as e:  # noqa: BLE001
         await _set(job_id, status="error", error=str(e))
+
+
+async def run_brief_job(ctx, user_id: str, project_id: str) -> None:
+    """Best-effort: derive and store the project brief. No Job row (fire-and-forget);
+    if it fails (e.g. no provider), the project keeps an empty brief and memory falls
+    back to the raw fields."""
+    try:
+        async with async_session() as db:
+            user = await db.get(User, uuid.UUID(user_id))
+            project = await db.get(Project, uuid.UUID(project_id))
+            if user is None or project is None:
+                return
+            secs = (await db.execute(
+                select(ProjectSection).where(ProjectSection.project_id == uuid.UUID(project_id))
+            )).scalars().all()
+            await brief_agent.run(user, db, project, list(secs))
+    except Exception:  # noqa: BLE001
+        pass

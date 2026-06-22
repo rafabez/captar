@@ -157,6 +157,8 @@ export interface Project {
   state: string | null
   phase: string | null
   status: string
+  brief: string | null
+  pins: string[] | null
   updated_at: string
   created_at: string
 }
@@ -168,15 +170,18 @@ export interface ProjectSection {
   version: number
 }
 
+export type Band = 'solido' | 'atencao' | 'fragil'
+
 export interface Diagnostic {
   id: string
-  overall_score: number
-  scores: Record<string, number>
+  overall_band: Band | null
+  summary: string | null
+  dimensions: Record<string, Band>
   strengths: string[]
   weaknesses: string[]
   risks: string[]
   next_steps: string[]
-  edital_matches: Array<{ name: string; score: number }>
+  edital_matches: Array<{ name: string; note: string }>
 }
 
 export interface Edital {

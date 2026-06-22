@@ -11,7 +11,7 @@ from fastapi import Response
 
 from ..models.job import Job
 from ..schemas import (
-    ProjectCreate, ProjectUpdate, ProjectOut,
+    ProjectCreate, ProjectUpdate, ProjectOut, PinsUpdate,
     SectionOut, SectionUpdate, SectionGenerateRequest,
     DiagnoseResponse, ExportRequest, JobOut,
     ConversationOut, MessageOut, MessageCreate,
@@ -20,6 +20,12 @@ from ..services import export_service
 from ..workers.queue import get_pool
 
 router = APIRouter(prefix="/projects", tags=["projects"])
+
+
+async def _enqueue_brief(user_id, project_id) -> None:
+    """Fire-and-forget refresh of the project's auto-derived memory brief."""
+    pool = await get_pool()
+    await pool.enqueue_job("run_brief_job", str(user_id), str(project_id))
 
 
 # --- Projects ---
@@ -47,6 +53,7 @@ async def create_project(
     db.add(project)
     await db.commit()
     await db.refresh(project)
+    await _enqueue_brief(current_user.id, project.id)
     return project
 
 
@@ -81,6 +88,26 @@ async def update_project(
 
     for key, val in data.model_dump(exclude_unset=True).items():
         setattr(project, key, val)
+    await db.commit()
+    await db.refresh(project)
+    await _enqueue_brief(current_user.id, project.id)
+    return project
+
+
+@router.put("/{project_id}/pins", response_model=ProjectOut)
+async def update_pins(
+    project_id: uuid.UUID,
+    data: PinsUpdate,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    project = result.scalar_one_or_none()
+    if not project:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    project.pins = [p.strip() for p in data.pins if p.strip()][:12]  # keep memory small
     await db.commit()
     await db.refresh(project)
     return project
@@ -235,8 +262,9 @@ async def list_diagnostics(
     return [
         DiagnoseResponse(
             id=d.id,
-            overall_score=d.overall_score,
-            scores=d.scores_json,
+            overall_band=d.overall_band,
+            summary=d.summary,
+            dimensions=d.scores_json,
             strengths=d.strengths,
             weaknesses=d.weaknesses,
             risks=d.risks,
