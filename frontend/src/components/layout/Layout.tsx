@@ -1,52 +1,50 @@
-import { Outlet, Link, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet, Link } from 'react-router-dom'
 import { UserButton } from '@clerk/clerk-react'
-
-const NAV = [
-  { to: '/dashboard', label: 'Projetos' },
-  { to: '/edital/upload', label: 'Editais' },
-  { to: '/plans', label: 'Planos' },
-  { to: '/settings', label: 'Configurações' },
-]
+import Sidebar from './Sidebar'
 
 export default function Layout() {
-  const { pathname } = useLocation()
-  const active = (to: string) =>
-    to === '/dashboard'
-      ? pathname.startsWith('/dashboard') || pathname.startsWith('/project')
-      : pathname.startsWith(to)
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('captar_sb') === '1')
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  const toggle = () =>
+    setCollapsed((v) => {
+      localStorage.setItem('captar_sb', v ? '0' : '1')
+      return !v
+    })
 
   return (
-    <div className="min-h-screen bg-paper bg-grain">
-      <header className="sticky top-0 z-50 border-b border-line bg-paper/85 backdrop-blur-md">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <Link to="/dashboard" className="flex items-baseline gap-1.5">
-            <span className="font-display text-2xl font-bold text-ink">CAPTAR</span>
-            <span className="h-1.5 w-1.5 rounded-full bg-terracotta" />
-          </Link>
+    <div className="min-h-screen flex bg-paper bg-grain">
+      {/* Desktop sidebar */}
+      <Sidebar className="hidden md:flex" collapsed={collapsed} onToggle={toggle} />
 
-          <nav className="hidden md:flex items-center gap-1">
-            {NAV.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                className={`rounded-full px-4 py-1.5 text-sm transition-colors ${
-                  active(n.to)
-                    ? 'bg-ink text-paper'
-                    : 'text-ink-soft hover:text-ink hover:bg-paper-2'
-                }`}
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
+      {/* Mobile drawer */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-50">
+          <div className="absolute inset-0 bg-ink/30" onClick={() => setMobileOpen(false)} />
+          <Sidebar className="relative z-10 flex" collapsed={false}
+            onToggle={() => setMobileOpen(false)} onNavigate={() => setMobileOpen(false)} />
+        </div>
+      )}
 
+      <div className="flex-1 min-w-0 flex flex-col">
+        {/* Mobile top bar */}
+        <div className="md:hidden h-14 flex items-center justify-between px-4 border-b border-line bg-paper">
+          <button onClick={() => setMobileOpen(true)} className="text-ink p-1" aria-label="Menu">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <Link to="/dashboard" className="font-display text-lg font-bold text-ink">CAPTAR</Link>
           <UserButton afterSignOutUrl="/" />
         </div>
-      </header>
 
-      <main className="max-w-6xl mx-auto px-6 py-10">
-        <Outlet />
-      </main>
+        <main className="flex-1">
+          <div className="max-w-5xl mx-auto px-6 py-10">
+            <Outlet />
+          </div>
+        </main>
+      </div>
     </div>
   )
 }

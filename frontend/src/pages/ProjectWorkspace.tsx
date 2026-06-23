@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link, useNavigate } from 'react-router-dom'
+import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, downloadPost, pollJob, type Project, type Diagnostic, type Submission, type Edital } from '../lib/api'
+
+type Tab = 'projeto' | 'memoria' | 'diag' | 'sections' | 'submissions' | 'export'
 
 const DIM_LABELS: Record<string, string> = {
   conceito: 'Conceito', narrativa: 'Narrativa', orcamento: 'Orçamento',
@@ -420,7 +422,9 @@ function SubmissionsPanel({ id }: { id: string }) {
 export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>()
   const [project, setProject] = useState<Project | null>(null)
-  const [tab, setTab] = useState<'projeto' | 'memoria' | 'diag' | 'sections' | 'submissions' | 'export'>('projeto')
+  const [params, setParams] = useSearchParams()
+  const tab = (params.get('tab') as Tab) || 'projeto'
+  const setTab = (t: Tab) => setParams({ tab: t }, { replace: true })
 
   useEffect(() => {
     if (id) api.get<Project>(`/projects/${id}`).then(setProject).catch(() => {})
