@@ -176,6 +176,35 @@ class JobOut(BaseModel):
 
     model_config = {"from_attributes": True}
 
+# --- Submissions ---
+
+class SubmissionCreate(BaseModel):
+    project_id: uuid.UUID
+    edital_id: uuid.UUID
+
+class SubmissionOut(BaseModel):
+    id: uuid.UUID
+    project_id: uuid.UUID
+    edital_id: uuid.UUID
+    title: str | None
+    status: str
+    adherence: dict | None = None
+    checklist: list | None = None
+    edital_title: str | None = None
+    deadline: date | None = None
+    created_at: datetime
+
+class ChecklistUpdate(BaseModel):
+    checklist: list        # [{item: str, done: bool}]
+
+class SubmissionSectionOut(BaseModel):
+    section_type: str
+    content: str | None
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 # --- Export ---
 
 class ExportRequest(BaseModel):

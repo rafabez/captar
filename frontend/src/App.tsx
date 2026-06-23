@@ -6,6 +6,7 @@ import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import ProjectNew from './pages/ProjectNew'
 import ProjectWorkspace from './pages/ProjectWorkspace'
+import SubmissionPage from './pages/SubmissionPage'
 import EditalUpload from './pages/EditalUpload'
 import EditalAnalysis from './pages/EditalAnalysis'
 import Settings from './pages/Settings'
@@ -40,6 +41,7 @@ function ClerkRoutes() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/project/new" element={<ProjectNew />} />
         <Route path="/project/:id" element={<ProjectWorkspace />} />
+        <Route path="/submission/:id" element={<SubmissionPage />} />
         <Route path="/edital/upload" element={<EditalUpload />} />
         <Route path="/edital/:id" element={<EditalAnalysis />} />
         <Route path="/settings" element={<Settings />} />

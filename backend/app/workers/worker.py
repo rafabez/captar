@@ -9,6 +9,8 @@ class WorkerSettings:
         tasks.run_edital_job,
         tasks.run_section_job,
         tasks.run_brief_job,
+        tasks.run_adherence_job,
+        tasks.run_adapt_job,
     ]
     redis_settings = redis_settings()
     max_jobs = 5

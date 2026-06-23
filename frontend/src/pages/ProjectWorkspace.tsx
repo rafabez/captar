@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
-import { api, downloadPost, pollJob, type Project, type Diagnostic } from '../lib/api'
+import { useParams, Link, useNavigate } from 'react-router-dom'
+import { api, downloadPost, pollJob, type Project, type Diagnostic, type Submission, type Edital } from '../lib/api'
 
 const DIM_LABELS: Record<string, string> = {
   conceito: 'Conceito', narrativa: 'Narrativa', orcamento: 'Orçamento',
@@ -354,10 +354,73 @@ function ExportPanel({ id }: { id: string }) {
   )
 }
 
+function SubmissionsPanel({ id }: { id: string }) {
+  const navigate = useNavigate()
+  const [subs, setSubs] = useState<Submission[]>([])
+  const [editais, setEditais] = useState<Edital[]>([])
+  const [picked, setPicked] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    api.get<Submission[]>(`/submissions?project_id=${id}`).then(setSubs).catch(() => {})
+    api.get<Edital[]>('/editais').then(setEditais).catch(() => {})
+  }, [id])
+
+  async function create() {
+    if (!picked) return
+    setBusy(true); setError(null)
+    try {
+      const sub = await api.post<Submission>('/submissions', { project_id: id, edital_id: picked })
+      navigate(`/submission/${sub.id}`)
+    } catch (e) { setError((e as Error).message); setBusy(false) }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="card-pad">
+        <h2 className="font-display text-2xl font-bold text-ink mb-1">Adaptar para um edital</h2>
+        <p className="text-xs text-ink-soft mb-4">
+          Crie uma submissão: o projeto adaptado a um edital (seções reescritas, aderência, checklist).
+          Analise editais na aba <Link to="/edital/upload" className="text-petroleum underline">Editais</Link> primeiro.
+        </p>
+        {error && <div className="text-sm text-terracotta mb-3">{error}</div>}
+        {editais.length === 0 ? (
+          <p className="text-sm text-ink-soft">Nenhum edital analisado ainda.</p>
+        ) : (
+          <div className="flex gap-2">
+            <select className="input" value={picked} onChange={(e) => setPicked(e.target.value)}>
+              <option value="">Escolha um edital…</option>
+              {editais.map((ed) => <option key={ed.id} value={ed.id}>{ed.title}</option>)}
+            </select>
+            <button onClick={create} disabled={busy || !picked} className="btn btn-primary shrink-0">
+              {busy ? 'Criando…' : 'Nova submissão'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {subs.length > 0 && (
+        <div className="space-y-2">
+          {subs.map((s) => (
+            <Link key={s.id} to={`/submission/${s.id}`} className="card w-full block p-4 hover:border-terracotta transition-colors">
+              <div className="font-medium text-ink">{s.edital_title || s.title}</div>
+              <div className="text-xs text-ink-soft mt-0.5">
+                {s.deadline ? `Prazo ${new Date(s.deadline).toLocaleDateString('pt-BR')}` : 'Sem prazo'}
+                {s.adherence ? ' · aderência analisada' : ' · aderência pendente'}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ProjectWorkspace() {
   const { id } = useParams<{ id: string }>()
   const [project, setProject] = useState<Project | null>(null)
-  const [tab, setTab] = useState<'projeto' | 'memoria' | 'diag' | 'sections' | 'export'>('projeto')
+  const [tab, setTab] = useState<'projeto' | 'memoria' | 'diag' | 'sections' | 'submissions' | 'export'>('projeto')
 
   useEffect(() => {
     if (id) api.get<Project>(`/projects/${id}`).then(setProject).catch(() => {})
@@ -367,7 +430,7 @@ export default function ProjectWorkspace() {
 
   const TABS = [
     ['projeto', 'Projeto'], ['memoria', 'Memória'], ['diag', 'Diagnóstico'],
-    ['sections', 'Seções'], ['export', 'Exportar'],
+    ['sections', 'Seções'], ['submissions', 'Submissões'], ['export', 'Exportar'],
   ] as const
 
   return (
@@ -394,6 +457,7 @@ export default function ProjectWorkspace() {
       {tab === 'memoria' && <MemoryPanel project={project} onChange={setProject} />}
       {tab === 'diag' && <DiagnosticPanel id={id} />}
       {tab === 'sections' && <SectionsPanel id={id} />}
+      {tab === 'submissions' && <SubmissionsPanel id={id} />}
       {tab === 'export' && <ExportPanel id={id} />}
     </div>
   )

@@ -3,5 +3,9 @@ from .projects import router as projects_router
 from .editais import router as editais_router
 from .user import router as user_router
 from .jobs import router as jobs_router
+from .submissions import router as submissions_router
 
-__all__ = ["auth_router", "projects_router", "editais_router", "user_router", "jobs_router"]
+__all__ = [
+    "auth_router", "projects_router", "editais_router",
+    "user_router", "jobs_router", "submissions_router",
+]

@@ -199,6 +199,24 @@ export interface Edital {
   created_at: string
 }
 
+export interface Submission {
+  id: string
+  project_id: string
+  edital_id: string
+  title: string | null
+  status: string
+  adherence: {
+    summary?: string
+    strengths?: string[]
+    gaps?: string[]
+    adjustments?: string[]
+  } | null
+  checklist: Array<{ item: string; done: boolean }> | null
+  edital_title: string | null
+  deadline: string | null
+  created_at: string
+}
+
 export interface Conversation {
   id: string
   title: string

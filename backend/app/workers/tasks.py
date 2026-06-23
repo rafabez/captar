@@ -6,12 +6,15 @@ from sqlalchemy import select
 from ..core.database import async_session
 from ..models.job import Job
 from ..models.user import User
-from ..models.project import Project, ProjectSection
+from ..models.project import Project, ProjectSection, Edital
+from ..models.submission import Submission
 from ..services.ai import ProviderError
 from ..services.ai.agents import diagnostic as diagnostic_agent
 from ..services.ai.agents import edital as edital_agent
 from ..services.ai.agents import section as section_agent
 from ..services.ai.agents import brief as brief_agent
+from ..services.ai.agents import adherence as adherence_agent
+from ..services.ai.agents import adapt as adapt_agent
 
 
 async def _set(job_id: str, **fields) -> None:
@@ -92,6 +95,47 @@ async def run_section_job(ctx, job_id: str, user_id: str, project_id: str,
                 select(ProjectSection).where(ProjectSection.project_id == uuid.UUID(project_id))
             )).scalars().all()
             res = await section_agent.run(user, db, project, list(secs), section_type, context)
+            result = {"section_type": section_type, "content": res.content, "generated_by": res.provider}
+        await _set(job_id, status="done", result=result)
+    except ProviderError as e:
+        await _set(job_id, status="error", error=str(e))
+    except Exception as e:  # noqa: BLE001
+        await _set(job_id, status="error", error=str(e))
+
+
+async def run_adherence_job(ctx, job_id: str, user_id: str, submission_id: str) -> None:
+    await _set(job_id, status="running")
+    try:
+        async with async_session() as db:
+            user = await db.get(User, uuid.UUID(user_id))
+            sub = await db.get(Submission, uuid.UUID(submission_id))
+            project = await db.get(Project, sub.project_id)
+            edital = await db.get(Edital, sub.edital_id)
+            result = await adherence_agent.run(user, db, sub, project, edital)
+        await _set(job_id, status="done", result=result)
+    except ProviderError as e:
+        await _set(job_id, status="error", error=str(e))
+    except Exception as e:  # noqa: BLE001
+        await _set(job_id, status="error", error=str(e))
+
+
+async def run_adapt_job(ctx, job_id: str, user_id: str, submission_id: str, section_type: str) -> None:
+    await _set(job_id, status="running")
+    try:
+        async with async_session() as db:
+            user = await db.get(User, uuid.UUID(user_id))
+            sub = await db.get(Submission, uuid.UUID(submission_id))
+            project = await db.get(Project, sub.project_id)
+            edital = await db.get(Edital, sub.edital_id)
+            base = (await db.execute(
+                select(ProjectSection)
+                .where(ProjectSection.project_id == sub.project_id,
+                       ProjectSection.section_type == section_type)
+                .order_by(ProjectSection.version.desc()).limit(1)
+            )).scalar_one_or_none()
+            res = await adapt_agent.run(
+                user, db, project, edital, section_type, base.content if base else None
+            )
             result = {"section_type": section_type, "content": res.content, "generated_by": res.provider}
         await _set(job_id, status="done", result=result)
     except ProviderError as e:
