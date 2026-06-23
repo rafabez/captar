@@ -6,7 +6,7 @@ from ..base import BaseProvider, ChatMessage, ChatResult, ProviderError
 
 class GeminiProvider(BaseProvider):
     name = "gemini"
-    default_model = "gemini-1.5-flash"
+    default_model = "gemini-2.5-flash"
     base_url = "https://generativelanguage.googleapis.com/v1beta"
 
     async def complete(

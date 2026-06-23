@@ -6,9 +6,11 @@ import { api, type Project } from '../../lib/api'
 const PROJECT_TOOLS = [
   { tab: 'projeto', label: 'Projeto' },
   { tab: 'memoria', label: 'Memória' },
+  { tab: 'chat', label: 'Chat' },
   { tab: 'diag', label: 'Diagnóstico' },
   { tab: 'sections', label: 'Seções' },
   { tab: 'submissions', label: 'Submissões' },
+  { tab: 'notas', label: 'Notas' },
   { tab: 'export', label: 'Exportar' },
 ]
 
@@ -22,7 +24,6 @@ const svg = (d: string) => (p: { className?: string }) => (
 const IconFolder = svg('M3 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z')
 const IconFile = svg('M14 3v4a1 1 0 0 0 1 1h4|M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z')
 const IconGear = svg('M12 3v3|M12 18v3|M3 12h3|M18 12h3|M5.6 5.6l2.1 2.1|M16.3 16.3l2.1 2.1|M18.4 5.6l-2.1 2.1|M7.7 16.3l-2.1 2.1|M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z')
-const IconTag = svg('M3 11.5 11.5 3 21 12.5 12.5 21z|M7.5 7.5h.01')
 const IconChevron = svg('M9 6l6 6-6 6')
 const IconPanel = svg('M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z|M9 4v16')
 
@@ -120,7 +121,6 @@ export default function Sidebar({ collapsed, onToggle, onNavigate, className = '
         <div className="pt-1">
           <Top icon={IconFile} label="Editais" to="/edital/upload" active={pathname.startsWith('/edital')} />
           <Top icon={IconGear} label="Configurações" to="/settings" active={pathname.startsWith('/settings')} />
-          <Top icon={IconTag} label="Planos" to="/plans" active={pathname.startsWith('/plans')} />
         </div>
       </nav>
 

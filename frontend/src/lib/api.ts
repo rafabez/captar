@@ -161,6 +161,7 @@ export interface Project {
   deadline: string | null
   objective: string | null
   description: string | null
+  notes: string | null
   status: string
   brief: string | null
   pins: string[] | null

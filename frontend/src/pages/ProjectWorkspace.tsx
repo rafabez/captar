@@ -2,7 +2,9 @@ import { useEffect, useState } from 'react'
 import { useParams, Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, downloadPost, pollJob, type Project, type Diagnostic, type Submission, type Edital } from '../lib/api'
 
-type Tab = 'projeto' | 'memoria' | 'diag' | 'sections' | 'submissions' | 'export'
+type Tab = 'projeto' | 'memoria' | 'chat' | 'diag' | 'sections' | 'submissions' | 'notas' | 'export'
+
+interface Msg { id: string; role: 'user' | 'assistant'; content: string; created_at: string }
 
 const DIM_LABELS: Record<string, string> = {
   conceito: 'Conceito', narrativa: 'Narrativa', orcamento: 'Orçamento',
@@ -42,12 +44,19 @@ function ProjectTab({ project, onChange }: { project: Project | null; onChange: 
     budget_approx: p.budget_approx != null ? String(p.budget_approx) : '',
     deadline: p.deadline || '', objective: p.objective || '', description: p.description || '',
   })
+  const navigate = useNavigate()
   const [form, setForm] = useState(() => (project ? map(project) : null))
   const [saving, setSaving] = useState(false)
   const [status, setStatus] = useState<string | null>(null)
 
   useEffect(() => { if (project) setForm(map(project)) }, [project?.id])
   if (!project || !form) return null
+
+  async function del() {
+    if (!confirm('Excluir este projeto? Esta ação não pode ser desfeita.')) return
+    await api.delete(`/projects/${project!.id}`)
+    navigate('/dashboard')
+  }
   const set = (k: string, v: string) => setForm((f) => ({ ...f!, [k]: v }))
 
   async function save() {
@@ -109,6 +118,95 @@ function ProjectTab({ project, onChange }: { project: Project | null; onChange: 
         <input className="input" value={form.objective} onChange={(e) => set('objective', e.target.value)} /></div>
       <div><label className="label">Descrição</label>
         <textarea className="input h-32 resize-none" value={form.description} onChange={(e) => set('description', e.target.value)} /></div>
+
+      <div className="pt-4 border-t border-line">
+        <button onClick={del} className="text-sm text-terracotta hover:underline">Excluir projeto</button>
+      </div>
+    </div>
+  )
+}
+
+function NotesTab({ project, onChange }: { project: Project | null; onChange: (p: Project) => void }) {
+  const [notes, setNotes] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+  useEffect(() => { setNotes(project?.notes || '') }, [project?.id])
+
+  async function save() {
+    if (!project) return
+    setSaving(true); setStatus(null)
+    try {
+      onChange(await api.patch<Project>(`/projects/${project.id}`, { notes }))
+      setStatus('Notas salvas.')
+    } catch (e) { setStatus(`Erro: ${(e as Error).message}`) }
+    finally { setSaving(false) }
+  }
+
+  return (
+    <div className="card-pad">
+      <h2 className="font-display text-2xl font-bold text-ink mb-1">Notas</h2>
+      <p className="text-xs text-ink-soft mb-4">Suas anotações livres sobre o desenvolvimento do projeto (não entram na IA).</p>
+      <textarea value={notes} onChange={(e) => setNotes(e.target.value)}
+        placeholder="Anote ideias, contatos, pendências, links…"
+        className="input h-96 resize-y leading-relaxed" />
+      <div className="flex items-center gap-3 mt-3">
+        <button onClick={save} disabled={saving} className="btn btn-primary">{saving ? 'Salvando…' : 'Salvar notas'}</button>
+        {status && <span className="text-sm text-ink-soft">{status}</span>}
+      </div>
+    </div>
+  )
+}
+
+function ChatTab({ id }: { id: string }) {
+  const [msgs, setMsgs] = useState<Msg[]>([])
+  const [input, setInput] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => { api.get<Msg[]>(`/projects/${id}/chat`).then(setMsgs).catch(() => {}) }, [id])
+
+  async function send() {
+    const content = input.trim()
+    if (!content || busy) return
+    setBusy(true); setError(null); setInput('')
+    const optimistic: Msg = { id: 'tmp', role: 'user', content, created_at: '' }
+    setMsgs((m) => [...m, optimistic])
+    try {
+      const reply = await api.post<Msg>(`/projects/${id}/chat`, { content })
+      setMsgs((m) => [...m.filter((x) => x.id !== 'tmp'), { ...optimistic, id: 'u' + reply.id }, reply])
+    } catch (e) {
+      setError((e as Error).message)
+      setMsgs((m) => m.filter((x) => x.id !== 'tmp'))
+      setInput(content)
+    } finally { setBusy(false) }
+  }
+
+  return (
+    <div className="card-pad flex flex-col" style={{ minHeight: '60vh' }}>
+      <h2 className="font-display text-2xl font-bold text-ink mb-1">Chat sobre o projeto</h2>
+      <p className="text-xs text-ink-soft mb-4">A IA já conhece seu projeto — pergunte, peça ideias, faça brainstorming.</p>
+
+      <div className="flex-1 space-y-3 overflow-y-auto mb-4">
+        {msgs.length === 0 && <p className="text-ink-soft text-sm text-center py-10">Comece a conversa abaixo.</p>}
+        {msgs.map((m, i) => (
+          <div key={i} className={m.role === 'user' ? 'flex justify-end' : 'flex justify-start'}>
+            <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm whitespace-pre-line ${
+              m.role === 'user' ? 'bg-ink text-paper' : 'bg-paper-2 text-ink'}`}>
+              {m.content}
+            </div>
+          </div>
+        ))}
+        {busy && <div className="flex justify-start"><div className="bg-paper-2 text-ink-soft rounded-2xl px-4 py-2.5 text-sm">Pensando…</div></div>}
+      </div>
+
+      {error && <div className="text-sm text-terracotta mb-2">{error}</div>}
+      <div className="flex gap-2">
+        <input className="input" value={input} disabled={busy}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && send()}
+          placeholder="Escreva sua mensagem…" />
+        <button onClick={send} disabled={busy || !input.trim()} className="btn btn-primary shrink-0">Enviar</button>
+      </div>
     </div>
   )
 }
@@ -433,8 +531,8 @@ export default function ProjectWorkspace() {
   if (!id) return null
 
   const TABS = [
-    ['projeto', 'Projeto'], ['memoria', 'Memória'], ['diag', 'Diagnóstico'],
-    ['sections', 'Seções'], ['submissions', 'Submissões'], ['export', 'Exportar'],
+    ['projeto', 'Projeto'], ['memoria', 'Memória'], ['chat', 'Chat'], ['diag', 'Diagnóstico'],
+    ['sections', 'Seções'], ['submissions', 'Submissões'], ['notas', 'Notas'], ['export', 'Exportar'],
   ] as const
 
   return (
@@ -459,9 +557,11 @@ export default function ProjectWorkspace() {
 
       {tab === 'projeto' && <ProjectTab project={project} onChange={setProject} />}
       {tab === 'memoria' && <MemoryPanel project={project} onChange={setProject} />}
+      {tab === 'chat' && <ChatTab id={id} />}
       {tab === 'diag' && <DiagnosticPanel id={id} />}
       {tab === 'sections' && <SectionsPanel id={id} />}
       {tab === 'submissions' && <SubmissionsPanel id={id} />}
+      {tab === 'notas' && <NotesTab project={project} onChange={setProject} />}
       {tab === 'export' && <ExportPanel id={id} />}
     </div>
   )

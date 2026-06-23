@@ -16,6 +16,7 @@ from .providers.anthropic import AnthropicProvider
 from .providers.openrouter import OpenRouterProvider
 from .providers.gemini import GeminiProvider
 from .providers.ollama import OllamaProvider
+from .providers.deepseek import DeepSeekProvider
 
 PROVIDERS: dict[str, type[BaseProvider]] = {
     "openai": OpenAIProvider,
@@ -23,6 +24,7 @@ PROVIDERS: dict[str, type[BaseProvider]] = {
     "openrouter": OpenRouterProvider,
     "gemini": GeminiProvider,
     "ollama": OllamaProvider,
+    "deepseek": DeepSeekProvider,
 }
 
 

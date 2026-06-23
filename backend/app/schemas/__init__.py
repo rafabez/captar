@@ -44,6 +44,7 @@ class ProjectUpdate(BaseModel):
     deadline: date | None = None
     objective: str | None = None
     description: str | None = None
+    notes: str | None = None
     status: str | None = None
 
 class ProjectOut(BaseModel):
@@ -58,6 +59,7 @@ class ProjectOut(BaseModel):
     deadline: date | None = None
     objective: str | None = None
     description: str | None = None
+    notes: str | None = None
     status: str
     brief: str | None = None        # auto-derived project memory
     pins: list | None = None        # user-pinned facts

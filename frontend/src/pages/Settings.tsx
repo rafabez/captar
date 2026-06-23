@@ -14,6 +14,7 @@ const KEY_PROVIDERS = [
   { id: 'openai', label: 'OpenAI', placeholder: 'sk-...' },
   { id: 'anthropic', label: 'Anthropic Claude', placeholder: 'sk-ant-...' },
   { id: 'gemini', label: 'Google Gemini', placeholder: 'AIza...' },
+  { id: 'deepseek', label: 'DeepSeek', placeholder: 'sk-...' },
 ]
 
 export default function Settings() {
@@ -128,6 +129,16 @@ export default function Settings() {
             </button>
           )}
         </div>
+        <details className="mt-4 text-sm">
+          <summary className="cursor-pointer text-petroleum">Como conectar (passo a passo)</summary>
+          <ol className="list-decimal ml-5 mt-2 space-y-1 text-ink-soft">
+            <li>Clique em <strong className="text-ink">Conectar</strong> acima.</li>
+            <li>Faça login ou crie uma conta grátis no OpenRouter.</li>
+            <li>Autorize o CAPTAR a usar sua conta.</li>
+            <li>Você volta para cá já conectado — vai aparecer "Em uso".</li>
+            <li>Para modelos pagos, adicione créditos em openrouter.ai (a partir de US$5). Vários modelos têm opção grátis.</li>
+          </ol>
+        </details>
       </div>
 
       {/* Manual keys */}

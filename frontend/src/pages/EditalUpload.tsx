@@ -69,6 +69,15 @@ export default function EditalUpload() {
   const loadRecent = () => api.get<Edital[]>('/editais').then(setRecent).catch(() => {})
   useEffect(() => { loadRecent() }, [])
 
+  async function delEdital(eid: string) {
+    if (!confirm('Excluir esta análise de edital?')) return
+    try {
+      await api.delete(`/editais/${eid}`)
+      if (result?.id === eid) setResult(null)
+      await loadRecent()
+    } catch { /* ignore */ }
+  }
+
   async function handleFile(file: File | undefined) {
     if (!file) return
     if (file.type !== 'application/pdf') return setError('Envie um arquivo PDF.')
@@ -159,14 +168,17 @@ export default function EditalUpload() {
           <h2 className="font-display text-xl font-bold text-ink mb-4">Análises recentes</h2>
           <div className="space-y-2">
             {recent.map((e) => (
-              <button key={e.id} onClick={() => setResult(e)}
-                className="card w-full text-left p-4 hover:border-terracotta transition-colors">
-                <div className="font-medium text-ink">{e.title}</div>
-                <div className="text-xs text-ink-soft mt-0.5">
-                  {e.deadline ? `Prazo ${new Date(e.deadline).toLocaleDateString('pt-BR')}` : 'Sem prazo'}
-                  {e.max_value != null && ` · até ${brl(e.max_value)}`}
-                </div>
-              </button>
+              <div key={e.id} className="card p-4 flex items-center justify-between gap-3 hover:border-terracotta transition-colors">
+                <button onClick={() => setResult(e)} className="text-left flex-1 min-w-0">
+                  <div className="font-medium text-ink truncate">{e.title}</div>
+                  <div className="text-xs text-ink-soft mt-0.5">
+                    {e.deadline ? `Prazo ${new Date(e.deadline).toLocaleDateString('pt-BR')}` : 'Sem prazo'}
+                    {e.max_value != null && ` · até ${brl(e.max_value)}`}
+                  </div>
+                </button>
+                <button onClick={() => delEdital(e.id)} title="Excluir"
+                  className="text-ink-soft hover:text-terracotta shrink-0 px-2">×</button>
+              </div>
             ))}
           </div>
         </div>

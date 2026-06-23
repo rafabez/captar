@@ -17,6 +17,8 @@ from ..schemas import (
     ConversationOut, MessageOut, MessageCreate,
 )
 from ..services import export_service
+from ..services.ai import ProviderError
+from ..services.ai.agents import chat as chat_agent
 from ..workers.queue import get_pool
 
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -336,6 +338,74 @@ async def export_project(
         media_type=media,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+# --- Chat (free brainstorming about the project) ---
+
+async def _chat_conversation(db: AsyncSession, project_id: uuid.UUID) -> Conversation:
+    res = await db.execute(
+        select(Conversation)
+        .where(Conversation.project_id == project_id)
+        .order_by(Conversation.created_at).limit(1)
+    )
+    conv = res.scalar_one_or_none()
+    if conv is None:
+        conv = Conversation(project_id=project_id, title="Chat")
+        db.add(conv)
+        await db.commit()
+        await db.refresh(conv)
+    return conv
+
+
+@router.get("/{project_id}/chat", response_model=list[MessageOut])
+async def get_chat(
+    project_id: uuid.UUID,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    proj = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    if proj.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+    conv = await _chat_conversation(db, project_id)
+    res = await db.execute(
+        select(Message).where(Message.conversation_id == conv.id).order_by(Message.created_at)
+    )
+    return res.scalars().all()
+
+
+@router.post("/{project_id}/chat", response_model=MessageOut, status_code=201)
+async def post_chat(
+    project_id: uuid.UUID,
+    data: MessageCreate,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    proj = await db.execute(
+        select(Project).where(Project.id == project_id, Project.user_id == current_user.id)
+    )
+    project = proj.scalar_one_or_none()
+    if project is None:
+        raise HTTPException(status_code=404, detail="Projeto não encontrado")
+
+    conv = await _chat_conversation(db, project_id)
+    hist = (await db.execute(
+        select(Message).where(Message.conversation_id == conv.id).order_by(Message.created_at)
+    )).scalars().all()
+
+    db.add(Message(conversation_id=conv.id, role="user", content=data.content))
+    await db.commit()
+    try:
+        answer = await chat_agent.run(current_user, db, project, list(hist), data.content)
+    except ProviderError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    msg = Message(conversation_id=conv.id, role="assistant", content=answer)
+    db.add(msg)
+    await db.commit()
+    await db.refresh(msg)
+    return msg
 
 
 # --- Conversations ---

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { api, pollJob, type Submission } from '../lib/api'
 
 const SECTIONS: { id: string; label: string }[] = [
@@ -158,6 +158,7 @@ function SubSections({ id }: { id: string }) {
 
 export default function SubmissionPage() {
   const { id } = useParams<{ id: string }>()
+  const navigate = useNavigate()
   const [sub, setSub] = useState<Submission | null>(null)
 
   useEffect(() => {
@@ -166,15 +167,22 @@ export default function SubmissionPage() {
 
   if (!id) return null
 
+  async function del() {
+    if (!sub || !confirm('Excluir esta submissão?')) return
+    await api.delete(`/submissions/${sub.id}`)
+    navigate(`/project/${sub.project_id}`)
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <Link to={sub ? `/project/${sub.project_id}` : '/dashboard'} className="text-sm text-ink-soft hover:text-terracotta">← Voltar ao projeto</Link>
         <p className="eyebrow mt-4 mb-1">Submissão</p>
         <h1 className="font-display text-3xl font-bold text-ink">{sub?.title || 'Submissão'}</h1>
-        <div className="flex flex-wrap gap-1.5 mt-3">
+        <div className="flex flex-wrap items-center gap-1.5 mt-3">
           {sub?.edital_title && <span className="chip">{sub.edital_title}</span>}
           {sub?.deadline && <span className="chip">Prazo: {new Date(sub.deadline).toLocaleDateString('pt-BR')}</span>}
+          <button onClick={del} className="text-xs text-terracotta hover:underline ml-2">Excluir submissão</button>
         </div>
       </div>
 

@@ -80,6 +80,22 @@ async def _enqueue_edital(
     return job
 
 
+@router.delete("/{edital_id}", status_code=204)
+async def delete_edital(
+    edital_id: uuid.UUID,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Edital).where(Edital.id == edital_id, Edital.user_id == current_user.id)
+    )
+    edital = result.scalar_one_or_none()
+    if not edital:
+        raise HTTPException(status_code=404, detail="Edital não encontrado")
+    await db.delete(edital)
+    await db.commit()
+
+
 @router.post("/upload", response_model=JobOut, status_code=202)
 async def upload_edital(
     file: UploadFile = File(...),
