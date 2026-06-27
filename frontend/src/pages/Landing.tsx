@@ -61,7 +61,7 @@ export default function Landing() {
             <span className="text-terracotta italic">rascunho</span>.
           </h1>
           <p className="text-lg text-ink-soft mt-6 max-w-md">
-            Plataforma de IA para artistas e produtores culturais criarem,
+            Plataforma para artistas e produtores culturais criarem,
             diagnosticarem e exportarem projetos para Lei Rouanet, ProAC,
             editais e patrocínios.
           </p>

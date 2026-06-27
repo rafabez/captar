@@ -179,7 +179,7 @@ async def get_section(
             ProjectSection.section_type == section_type,
             Project.user_id == current_user.id,
         )
-        .order_by(ProjectSection.version.desc())
+        .order_by(ProjectSection.updated_at.desc())
         .limit(1)
     )
     section = result.scalar_one_or_none()
@@ -203,12 +203,24 @@ async def save_section(
     if not proj.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
-    section = ProjectSection(
-        project_id=project_id,
-        section_type=section_type,
-        content=data.content,
+    # Upsert: update the latest existing section of this type, else create one.
+    existing = await db.execute(
+        select(ProjectSection)
+        .where(
+            ProjectSection.project_id == project_id,
+            ProjectSection.section_type == section_type,
+        )
+        .order_by(ProjectSection.updated_at.desc())
+        .limit(1)
     )
-    db.add(section)
+    section = existing.scalar_one_or_none()
+    if section:
+        section.content = data.content
+    else:
+        section = ProjectSection(
+            project_id=project_id, section_type=section_type, content=data.content
+        )
+        db.add(section)
     await db.commit()
     await db.refresh(section)
     return section
