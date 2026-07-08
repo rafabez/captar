@@ -44,7 +44,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
   const res = await fetch(`${API_BASE}${path}`, config)
 
   if (!res.ok) {
-    let detail = res.statusText
+    let detail = res.statusText || `falha na requisição (${res.status})`
     try {
       const err = await res.json()
       detail = err.detail || detail
@@ -99,7 +99,7 @@ export async function downloadPost(path: string, body: unknown, fallbackName: st
     body: JSON.stringify(body),
   })
   if (!res.ok) {
-    let detail = res.statusText
+    let detail = res.statusText || `falha na requisição (${res.status})`
     try {
       detail = (await res.json()).detail || detail
     } catch {}
@@ -130,7 +130,7 @@ export async function uploadFile<T>(path: string, file: File): Promise<T> {
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
   if (!res.ok) {
-    let detail = res.statusText
+    let detail = res.statusText || `falha na requisição (${res.status})`
     try {
       detail = (await res.json()).detail || detail
     } catch {}

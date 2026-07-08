@@ -2,6 +2,7 @@ import uuid
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db
@@ -32,8 +33,10 @@ async def get_current_user(
     user = result.scalar_one_or_none()
 
     if user is None:
-        # Auto-create user from Clerk data on first request
-        email = payload.get("email") or ""
+        # Auto-create user from Clerk data on first request. Clerk's default
+        # session token carries no email claim, so fall back to a per-user
+        # placeholder — users.email is UNIQUE and "" would collide on the 2nd user.
+        email = payload.get("email") or f"{clerk_id}@users.captar"
         full_name = (
             f"{payload.get('first_name', '')} {payload.get('last_name', '')}".strip()
             or None
@@ -44,8 +47,14 @@ async def get_current_user(
             full_name=full_name,
         )
         db.add(user)
-        await db.commit()
-        await db.refresh(user)
+        try:
+            await db.commit()
+            await db.refresh(user)
+        except IntegrityError:
+            # Parallel first requests raced to create the same user — reload it.
+            await db.rollback()
+            result = await db.execute(select(User).where(User.clerk_id == clerk_id))
+            user = result.scalar_one_or_none()
 
     return user
 
