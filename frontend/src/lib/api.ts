@@ -215,6 +215,7 @@ export interface MuralEdital {
   criteria: string[] | null
   shared_by: string | null
   shared_at: string | null
+  is_mine: boolean
 }
 
 export interface Submission {

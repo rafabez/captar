@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from ..models.user import User
 from ..models.project import Edital
+from ..models.mural import MuralPost
 from ..models.job import Job
 from ..schemas import EditalOut, EditalFromUrl, JobOut, EditalShare, MuralEditalOut
 from ..services.edital_parser import extract_text
@@ -63,32 +64,32 @@ async def mural(
     db: AsyncSession = Depends(get_db),
 ):
     rows = (await db.execute(
-        select(Edital, User.full_name)
-        .join(User, Edital.user_id == User.id)
-        .where(Edital.shared == True)  # noqa: E712
-        .order_by(Edital.shared_at.desc())
+        select(MuralPost, User.full_name)
+        .join(User, MuralPost.user_id == User.id)
+        .order_by(MuralPost.created_at.desc())
         .limit(100)
     )).all()
     return [
         MuralEditalOut(
-            id=e.id, title=e.title, summary=e.summary, deadline=e.deadline,
-            max_value=e.max_value, source_url=e.source_url,
-            requirements=e.requirements, criteria=e.criteria,
-            shared_by=name or "Um produtor", shared_at=e.shared_at,
+            id=p.id, title=p.title, summary=p.summary, deadline=p.deadline,
+            max_value=p.max_value, source_url=p.source_url,
+            requirements=p.requirements, criteria=p.criteria,
+            shared_by=name or "Um produtor", shared_at=p.created_at,
+            is_mine=(p.user_id == current_user.id),
         )
-        for e, name in rows
+        for p, name in rows
     ]
 
 
-@router.post("/mural/{edital_id}/import", response_model=EditalOut, status_code=201)
+@router.post("/mural/{post_id}/import", response_model=EditalOut, status_code=201)
 async def import_edital(
-    edital_id: uuid.UUID,
+    post_id: uuid.UUID,
     current_user: User = Depends(require_user),
     db: AsyncSession = Depends(get_db),
 ):
-    src = await db.get(Edital, edital_id)
-    if not src or not src.shared:
-        raise HTTPException(status_code=404, detail="Edital não disponível no mural")
+    src = await db.get(MuralPost, post_id)
+    if not src:
+        raise HTTPException(status_code=404, detail="Post do mural não encontrado")
     copy = Edital(
         user_id=current_user.id, title=src.title, source_url=src.source_url,
         source_filename=src.source_filename, raw_text=src.raw_text, summary=src.summary,
@@ -99,6 +100,25 @@ async def import_edital(
     await db.commit()
     await db.refresh(copy)
     return copy
+
+
+@router.delete("/mural/{post_id}", status_code=204)
+async def delete_mural_post(
+    post_id: uuid.UUID,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    post = await db.get(MuralPost, post_id)
+    if not post or post.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Post do mural não encontrado")
+    # Reflect on the source edital's badge if it still exists.
+    if post.source_edital_id:
+        src = await db.get(Edital, post.source_edital_id)
+        if src and src.user_id == current_user.id:
+            src.shared = False
+            src.shared_at = None
+    await db.delete(post)
+    await db.commit()
 
 
 @router.put("/{edital_id}/share", response_model=EditalOut)
@@ -114,8 +134,32 @@ async def share_edital(
     edital = result.scalar_one_or_none()
     if not edital:
         raise HTTPException(status_code=404, detail="Edital não encontrado")
-    edital.shared = data.shared
-    edital.shared_at = datetime.now(timezone.utc) if data.shared else None
+
+    existing = (await db.execute(
+        select(MuralPost).where(
+            MuralPost.source_edital_id == edital.id,
+            MuralPost.user_id == current_user.id,
+        )
+    )).scalars().all()
+
+    if data.shared:
+        if not existing:
+            db.add(MuralPost(
+                user_id=current_user.id, source_edital_id=edital.id,
+                title=edital.title, source_url=edital.source_url,
+                source_filename=edital.source_filename, raw_text=edital.raw_text,
+                summary=edital.summary, eligibility=edital.eligibility,
+                deadline=edital.deadline, max_value=edital.max_value,
+                requirements=edital.requirements, criteria=edital.criteria,
+            ))
+        edital.shared = True
+        edital.shared_at = datetime.now(timezone.utc)
+    else:
+        for post in existing:
+            await db.delete(post)
+        edital.shared = False
+        edital.shared_at = None
+
     await db.commit()
     await db.refresh(edital)
     return edital

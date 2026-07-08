@@ -150,7 +150,7 @@ class EditalShare(BaseModel):
     shared: bool
 
 class MuralEditalOut(BaseModel):
-    id: uuid.UUID
+    id: uuid.UUID          # mural post id
     title: str | None
     summary: str | None
     deadline: date | None
@@ -160,6 +160,7 @@ class MuralEditalOut(BaseModel):
     criteria: list | None
     shared_by: str | None
     shared_at: datetime | None
+    is_mine: bool = False
 
 # --- Providers ---
 

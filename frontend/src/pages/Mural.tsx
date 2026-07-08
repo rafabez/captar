@@ -18,11 +18,23 @@ export default function Mural() {
       .finally(() => setLoading(false))
   }, [])
 
+  const load = () => api.get<MuralEdital[]>('/editais/mural').then(setEditais).catch(() => {})
+
   async function importEdital(id: string) {
     setBusy(id)
     try {
       await api.post(`/editais/mural/${id}/import`, {})
       setImported((m) => ({ ...m, [id]: true }))
+    } catch { /* ignore */ }
+    finally { setBusy(null) }
+  }
+
+  async function removePost(id: string) {
+    if (!confirm('Remover este edital do mural? (não apaga da sua conta)')) return
+    setBusy(id)
+    try {
+      await api.delete(`/editais/mural/${id}`)
+      await load()
     } catch { /* ignore */ }
     finally { setBusy(null) }
   }
@@ -62,6 +74,10 @@ export default function Mural() {
                   <a href={e.source_url} target="_blank" rel="noreferrer" className="text-sm text-petroleum underline">
                     Link do edital
                   </a>
+                )}
+                {e.is_mine && (
+                  <button onClick={() => removePost(e.id)} disabled={busy === e.id}
+                    className="text-sm text-terracotta hover:underline ml-auto">Remover do mural</button>
                 )}
               </div>
             </div>
