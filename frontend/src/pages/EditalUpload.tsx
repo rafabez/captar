@@ -6,12 +6,18 @@ function brl(v: number | null) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 }
 
-function Result({ e }: { e: Edital }) {
+function Result({ e, onShare }: { e: Edital; onShare: (shared: boolean) => void }) {
   return (
     <div className="card-pad space-y-6">
-      <div>
-        <h2 className="font-display text-2xl font-bold text-ink">{e.title}</h2>
-        <p className="text-ink-soft mt-2">{e.summary}</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="font-display text-2xl font-bold text-ink">{e.title}</h2>
+          <p className="text-ink-soft mt-2">{e.summary}</p>
+        </div>
+        <button onClick={() => onShare(!e.shared)} title="Mostrar no mural da comunidade"
+          className={`btn shrink-0 ${e.shared ? 'btn-ghost' : 'btn-petrol'}`}>
+          {e.shared ? 'No mural ✓' : 'Compartilhar'}
+        </button>
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -68,6 +74,15 @@ export default function EditalUpload() {
 
   const loadRecent = () => api.get<Edital[]>('/editais').then(setRecent).catch(() => {})
   useEffect(() => { loadRecent() }, [])
+
+  async function shareEdital(shared: boolean) {
+    if (!result) return
+    try {
+      const up = await api.put<Edital>(`/editais/${result.id}/share`, { shared })
+      setResult(up)
+      await loadRecent()
+    } catch (e) { setError((e as Error).message) }
+  }
 
   async function delEdital(eid: string) {
     if (!confirm('Excluir esta análise de edital?')) return
@@ -161,7 +176,7 @@ export default function EditalUpload() {
         </div>
       )}
 
-      {result && <div className="mt-6"><Result e={result} /></div>}
+      {result && <div className="mt-6"><Result e={result} onShare={shareEdital} /></div>}
 
       {recent.length > 0 && (
         <div className="mt-10">

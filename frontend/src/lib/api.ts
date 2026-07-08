@@ -200,7 +200,21 @@ export interface Edital {
   requirements: string[]
   criteria: string[]
   status: string
+  shared: boolean
   created_at: string
+}
+
+export interface MuralEdital {
+  id: string
+  title: string | null
+  summary: string | null
+  deadline: string | null
+  max_value: number | null
+  source_url: string | null
+  requirements: string[] | null
+  criteria: string[] | null
+  shared_by: string | null
+  shared_at: string | null
 }
 
 export interface Submission {

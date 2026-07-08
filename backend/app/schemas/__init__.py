@@ -141,9 +141,25 @@ class EditalOut(BaseModel):
     requirements: list | None
     criteria: list | None
     status: str
+    shared: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+class EditalShare(BaseModel):
+    shared: bool
+
+class MuralEditalOut(BaseModel):
+    id: uuid.UUID
+    title: str | None
+    summary: str | None
+    deadline: date | None
+    max_value: float | None
+    source_url: str | None
+    requirements: list | None
+    criteria: list | None
+    shared_by: str | None
+    shared_at: datetime | None
 
 # --- Providers ---
 

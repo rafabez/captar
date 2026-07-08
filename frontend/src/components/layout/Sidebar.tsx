@@ -24,6 +24,7 @@ const svg = (d: string) => (p: { className?: string }) => (
 const IconFolder = svg('M3 7a2 2 0 0 1 2-2h3l2 2h7a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z')
 const IconFile = svg('M14 3v4a1 1 0 0 0 1 1h4|M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z')
 const IconGear = svg('M12 3v3|M12 18v3|M3 12h3|M18 12h3|M5.6 5.6l2.1 2.1|M16.3 16.3l2.1 2.1|M18.4 5.6l-2.1 2.1|M7.7 16.3l-2.1 2.1|M12 9.5a2.5 2.5 0 1 0 0 5 2.5 2.5 0 0 0 0-5z')
+const IconMural = svg('M9 7a3 3 0 1 0 0-.01|M17.5 8a2.5 2.5 0 1 0 0-.01|M3 20a6 6 0 0 1 12 0|M15.5 20a4.5 4.5 0 0 1 5.5-4.4')
 const IconChevron = svg('M9 6l6 6-6 6')
 const IconPanel = svg('M4 5a1 1 0 0 1 1-1h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1z|M9 4v16')
 
@@ -120,6 +121,7 @@ export default function Sidebar({ collapsed, onToggle, onNavigate, className = '
 
         <div className="pt-1">
           <Top icon={IconFile} label="Editais" to="/edital/upload" active={pathname.startsWith('/edital')} />
+          <Top icon={IconMural} label="Mural" to="/mural" active={pathname.startsWith('/mural')} />
           <Top icon={IconGear} label="Configurações" to="/settings" active={pathname.startsWith('/settings')} />
         </div>
       </nav>

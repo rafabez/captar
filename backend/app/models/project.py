@@ -118,6 +118,8 @@ class Edital(Base):
     requirements: Mapped[list | None] = mapped_column(JSONB)
     criteria: Mapped[list | None] = mapped_column(JSONB)
     status: Mapped[str] = mapped_column(String(20), default="open")
+    shared: Mapped[bool] = mapped_column(Boolean, default=False)   # posted to the community mural
+    shared_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     matches: Mapped[list["EditalMatch"]] = relationship(back_populates="edital", cascade="all, delete-orphan")

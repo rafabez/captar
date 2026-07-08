@@ -10,10 +10,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.database import get_db
 from ..core.deps import require_user
+from datetime import datetime, timezone
+
 from ..models.user import User
 from ..models.project import Edital
 from ..models.job import Job
-from ..schemas import EditalOut, EditalFromUrl, JobOut
+from ..schemas import EditalOut, EditalFromUrl, JobOut, EditalShare, MuralEditalOut
 from ..services.edital_parser import extract_text
 from ..workers.queue import get_pool
 
@@ -51,6 +53,72 @@ async def list_editais(
         .order_by(Edital.created_at.desc())
     )
     return result.scalars().all()
+
+
+# --- Community mural (defined before /{edital_id} so "mural" isn't parsed as an id) ---
+
+@router.get("/mural", response_model=list[MuralEditalOut])
+async def mural(
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    rows = (await db.execute(
+        select(Edital, User.full_name)
+        .join(User, Edital.user_id == User.id)
+        .where(Edital.shared == True)  # noqa: E712
+        .order_by(Edital.shared_at.desc())
+        .limit(100)
+    )).all()
+    return [
+        MuralEditalOut(
+            id=e.id, title=e.title, summary=e.summary, deadline=e.deadline,
+            max_value=e.max_value, source_url=e.source_url,
+            requirements=e.requirements, criteria=e.criteria,
+            shared_by=name or "Um produtor", shared_at=e.shared_at,
+        )
+        for e, name in rows
+    ]
+
+
+@router.post("/mural/{edital_id}/import", response_model=EditalOut, status_code=201)
+async def import_edital(
+    edital_id: uuid.UUID,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    src = await db.get(Edital, edital_id)
+    if not src or not src.shared:
+        raise HTTPException(status_code=404, detail="Edital não disponível no mural")
+    copy = Edital(
+        user_id=current_user.id, title=src.title, source_url=src.source_url,
+        source_filename=src.source_filename, raw_text=src.raw_text, summary=src.summary,
+        eligibility=src.eligibility, deadline=src.deadline, max_value=src.max_value,
+        requirements=src.requirements, criteria=src.criteria, status="open",
+    )
+    db.add(copy)
+    await db.commit()
+    await db.refresh(copy)
+    return copy
+
+
+@router.put("/{edital_id}/share", response_model=EditalOut)
+async def share_edital(
+    edital_id: uuid.UUID,
+    data: EditalShare,
+    current_user: User = Depends(require_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Edital).where(Edital.id == edital_id, Edital.user_id == current_user.id)
+    )
+    edital = result.scalar_one_or_none()
+    if not edital:
+        raise HTTPException(status_code=404, detail="Edital não encontrado")
+    edital.shared = data.shared
+    edital.shared_at = datetime.now(timezone.utc) if data.shared else None
+    await db.commit()
+    await db.refresh(edital)
+    return edital
 
 
 @router.get("/{edital_id}", response_model=EditalOut)
