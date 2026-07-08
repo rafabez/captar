@@ -25,9 +25,12 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 async def _enqueue_brief(user_id, project_id) -> None:
-    """Fire-and-forget refresh of the project's auto-derived memory brief."""
-    pool = await get_pool()
-    await pool.enqueue_job("run_brief_job", str(user_id), str(project_id))
+    """Fire-and-forget refresh of the project's memory brief — never fail the request."""
+    try:
+        pool = await get_pool()
+        await pool.enqueue_job("run_brief_job", str(user_id), str(project_id))
+    except Exception:  # noqa: BLE001 — brief is best-effort
+        pass
 
 
 # --- Projects ---
@@ -321,11 +324,11 @@ async def export_project(
     if not project:
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
-    # Latest content per section_type (sections are append-only versioned).
+    # Latest content per section_type (iterate oldest→newest so the newest wins).
     secs = await db.execute(
         select(ProjectSection)
         .where(ProjectSection.project_id == project_id)
-        .order_by(ProjectSection.version)
+        .order_by(ProjectSection.updated_at)
     )
     content_by_type: dict[str, str] = {}
     for s in secs.scalars().all():
@@ -402,9 +405,13 @@ async def post_chat(
         raise HTTPException(status_code=404, detail="Projeto não encontrado")
 
     conv = await _chat_conversation(db, project_id)
-    hist = (await db.execute(
-        select(Message).where(Message.conversation_id == conv.id).order_by(Message.created_at)
-    )).scalars().all()
+    # Only the most recent turns go to the model (memory covers the rest).
+    hist = list(reversed((await db.execute(
+        select(Message)
+        .where(Message.conversation_id == conv.id)
+        .order_by(Message.created_at.desc())
+        .limit(20)
+    )).scalars().all()))
 
     db.add(Message(conversation_id=conv.id, role="user", content=data.content))
     await db.commit()

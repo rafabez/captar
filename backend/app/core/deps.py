@@ -7,9 +7,26 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db
 from .security import verify_clerk_token
+from . import clerk_api
 from ..models.user import User
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+PLACEHOLDER_SUFFIX = "@users.captar"
+
+
+async def _real_profile(clerk_id: str, payload: dict) -> tuple[str | None, str | None]:
+    """Best real (email, full_name) available: token claims, else Clerk Backend API."""
+    email = payload.get("email")
+    full_name = (
+        f"{payload.get('first_name', '')} {payload.get('last_name', '')}".strip() or None
+    )
+    if not email or not full_name:
+        profile = await clerk_api.fetch_user(clerk_id)
+        if profile:
+            email = email or profile.get("email")
+            full_name = full_name or profile.get("full_name")
+    return email, full_name
 
 
 async def get_current_user(
@@ -33,17 +50,14 @@ async def get_current_user(
     user = result.scalar_one_or_none()
 
     if user is None:
-        # Auto-create user from Clerk data on first request. Clerk's default
-        # session token carries no email claim, so fall back to a per-user
-        # placeholder — users.email is UNIQUE and "" would collide on the 2nd user.
-        email = payload.get("email") or f"{clerk_id}@users.captar"
-        full_name = (
-            f"{payload.get('first_name', '')} {payload.get('last_name', '')}".strip()
-            or None
-        )
+        # Auto-create on first request. The default session token has no email
+        # claim, so fetch the real profile from the Clerk Backend API (works for
+        # Google sign-ins too); fall back to a unique placeholder — users.email
+        # is UNIQUE and "" would collide on the 2nd user.
+        email, full_name = await _real_profile(clerk_id, payload)
         user = User(
             clerk_id=clerk_id,
-            email=email,
+            email=email or f"{clerk_id}{PLACEHOLDER_SUFFIX}",
             full_name=full_name,
         )
         db.add(user)
@@ -55,6 +69,18 @@ async def get_current_user(
             await db.rollback()
             result = await db.execute(select(User).where(User.clerk_id == clerk_id))
             user = result.scalar_one_or_none()
+    elif user.email.endswith(PLACEHOLDER_SUFFIX):
+        # Heal users created before the Clerk API lookup existed.
+        email, full_name = await _real_profile(clerk_id, payload)
+        if email:
+            user.email = email
+            if full_name and not user.full_name:
+                user.full_name = full_name
+            try:
+                await db.commit()
+                await db.refresh(user)
+            except IntegrityError:
+                await db.rollback()  # email already taken by another row — keep placeholder
 
     return user
 

@@ -32,7 +32,12 @@ class GeminiProvider(BaseProvider):
         ]
         payload: dict = {
             "contents": contents,
-            "generationConfig": {"maxOutputTokens": max_tokens},
+            # thinkingBudget 0: Gemini 2.5 otherwise spends the output budget on
+            # internal "thinking" and can return an empty candidate.
+            "generationConfig": {
+                "maxOutputTokens": max_tokens,
+                "thinkingConfig": {"thinkingBudget": 0},
+            },
         }
         if system:
             payload["systemInstruction"] = {"parts": [{"text": system}]}
