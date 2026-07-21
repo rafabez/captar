@@ -3,7 +3,7 @@ http:
     captar-backend:
       entryPoints:
         - websecure
-      rule: "Host(`captar.srv1720434.hstgr.cloud`) && PathPrefix(`/api`)"
+      rule: "Host(`captar.srv1842127.hstgr.cloud`) && PathPrefix(`/api`)"
       tls:
         certResolver: letsencrypt
       service: captar-backend
@@ -12,7 +12,7 @@ http:
     captar-frontend:
       entryPoints:
         - websecure
-      rule: "Host(`captar.srv1720434.hstgr.cloud`)"
+      rule: "Host(`captar.srv1842127.hstgr.cloud`)"
       tls:
         certResolver: letsencrypt
       service: captar-frontend
